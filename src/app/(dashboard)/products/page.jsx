@@ -1,19 +1,22 @@
 'use client'
 
-// React Imports
+// Importations React
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from '../../firebase/firebaseconfigdb';
 
-// Component Imports
+// Importations de composants
 import ProductListTable from '../../../views/products/ProductListTable'; 
 import ProductTypeFactory from '../../../utils/ProductTypeFactory';
 import ProductFactory from '../../../utils/ProductFactory'; 
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 
 const ProductsPage = () => {
   const [productTypes, setProductTypes] = useState([]);
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProductTypes = async () => {
@@ -37,14 +40,23 @@ const ProductsPage = () => {
         }
       }
       setProducts(allProducts);
+      setLoading(false);
     };
 
     fetchProductTypes();
   }, []);
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <div>
-      <h1>Products</h1>
+      <h1>Produits</h1>
       <ProductListTable productData={products} />
     </div>
   );

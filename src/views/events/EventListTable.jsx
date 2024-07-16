@@ -1,12 +1,15 @@
 'use client'
 
-// React Imports
+// Importations React
 import { useEffect, useState, useMemo } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { useParams } from 'next/navigation';
 
 // MUI Imports
-import { Card, Typography, MenuItem, styled, Select, CardHeader} from '@mui/material';
+import { Card, Typography, MenuItem, styled, Select, CardHeader } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 
 // Third-party Imports
 import classnames from 'classnames';
@@ -27,6 +30,7 @@ import EventFilters from './EventFilters';
 
 // Util Imports
 import { getInitials } from '@/utils/getInitials';
+import { fetchEvents } from '../../redux-store/slices/event';
 
 const Icon = styled('i')({});
 
@@ -48,18 +52,27 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   return <CustomTextField {...props} value={value} onChange={e => setValue(e.target.value)} />;
 };
 
-const UserListTable = ({ userData }) => {
+const EventListTable = () => {
+  const dispatch = useDispatch();
+  const events = useSelector((state) => state.events.filteredEvents);
+  const status = useSelector((state) => state.events.status);
   const [data, setData] = useState([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('passed');
   const { lang: locale } = useParams();
 
   useEffect(() => {
-    setData(userData);
-  }, [userData]);
+    if (status === 'idle') {
+      dispatch(fetchEvents());
+    }
+  }, [status, dispatch]);
 
   useEffect(() => {
-    const filteredData = userData?.filter(event => {
+    setData(events);
+  }, [events]);
+
+  useEffect(() => {
+    const filteredData = events?.filter(event => {
       const eventDate = new Date(event.date);
       const today = new Date();
       if (dateFilter === 'passed' && eventDate >= today) return false;
@@ -70,7 +83,7 @@ const UserListTable = ({ userData }) => {
     });
 
     setData(filteredData);
-  }, [dateFilter, userData]);
+  }, [dateFilter, events]);
 
   const columnHelper = createColumnHelper();
 
@@ -121,6 +134,14 @@ const UserListTable = ({ userData }) => {
     setDateFilter(event.target.value);
   };
 
+  if (status === 'loading') {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <div>
       <div className='flex justify-between items-center'>
@@ -152,8 +173,8 @@ const UserListTable = ({ userData }) => {
       </div>
       <br/>
       <Card>
-      <CardHeader title='Filters' className='pbe-4' />
-      <EventFilters setData={setData} eventData={userData} />
+        <CardHeader title='Filters' className='pbe-4' />
+        <EventFilters setData={setData} eventData={events} />
       </Card>
       <br/>
       <Card>
@@ -220,4 +241,4 @@ const UserListTable = ({ userData }) => {
   );
 };
 
-export default UserListTable;
+export default EventListTable;

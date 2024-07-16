@@ -1,16 +1,16 @@
-// React Imports
+// Importations React
 import { useState, useEffect } from 'react';
 
-// MUI Imports
+// Importations MUI
 import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 
-// Component Imports
+// Importations de composants
 import CustomTextField from '@core/components/mui/TextField';
 
 const ProductFilters = ({ setData, productData }) => {
-  // States
+  // États
   const [productType, setProductType] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
 
@@ -42,11 +42,7 @@ const ProductFilters = ({ setData, productData }) => {
             onChange={e => setProductType(e.target.value)}
             SelectProps={{ displayEmpty: true }}
           >
-            <MenuItem value=''>Select Product Type</MenuItem>
-            <MenuItem value='electronics'>Electronics</MenuItem>
-            <MenuItem value='fashion'>Fashion</MenuItem>
-            <MenuItem value='home'>Home</MenuItem>
-            <MenuItem value='beauty'>Beauty</MenuItem>
+            <MenuItem value=''>Sélectionner le type de produit</MenuItem>
           </CustomTextField>
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -58,10 +54,10 @@ const ProductFilters = ({ setData, productData }) => {
             onChange={e => setDateFilter(e.target.value)}
             SelectProps={{ displayEmpty: true }}
           >
-            <MenuItem value='all'>All Dates</MenuItem>
-            <MenuItem value='upcoming'>Upcoming Products</MenuItem>
-            <MenuItem value='today'>Today's Products</MenuItem>
-            <MenuItem value='passed'>Past Products</MenuItem>
+            <MenuItem value='all'>Toutes les dates</MenuItem>
+            <MenuItem value='upcoming'>Produits à venir</MenuItem>
+            <MenuItem value='today'>Produits d'aujourd'hui</MenuItem>
+            <MenuItem value='passed'>Produits passés</MenuItem>
           </CustomTextField>
         </Grid>
       </Grid>

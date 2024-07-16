@@ -5,13 +5,16 @@ import { collection, getDocs } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { adb, storagedb, auth } from '../../firebase/firebaseconfigdb';
 import { useRouter } from 'next/navigation';
-import UserList from '../../../views/events/EventListTable';
+import EventList from '../../../views/events/EventListTable';
 import { ref, getDownloadURL } from 'firebase/storage';
 import EventFactory from '../../../utils/EventFactory';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
-  const [user, loading] = useAuthState(auth);
+  const [loading, setLoading] = useState(true);
+  const [user, userLoading] = useAuthState(auth);
   const router = useRouter();
 
   useEffect(() => {
@@ -35,7 +38,7 @@ export default function EventsPage() {
         try {
           let event = EventFactory(doc);
           const imageRef = ref(storagedb, `events/${doc.id}/pic`); 
-          event.avatar = await getDownloadURL(imageRef).catch(() => 'events/${doc.id}/pic');
+          event.avatar = await getDownloadURL(imageRef).catch(() => `events/${doc.id}/pic`);
           return event;
         } catch (error) {
           console.error("Error fetching event data:", error);
@@ -46,14 +49,25 @@ export default function EventsPage() {
       const filteredEvents = eventsList.filter(event => event);
       console.log("Events fetched:", filteredEvents); // Log fetched events
       setEvents(filteredEvents);
+      setLoading(false);
     };
 
-    fetchEvents();
-  }, []);
+    if (user) {
+      fetchEvents();
+    }
+  }, [user]);
+
+  if (userLoading || loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <div>
-      <UserList userData={events} />
+      <EventList userData={events} />
     </div>
   );
 }

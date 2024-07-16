@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 
 // MUI Imports
-import { Card, Typography, MenuItem, styled, CardHeader } from '@mui/material';
+import { Card, Typography, MenuItem, styled, CardHeader, TablePagination } from '@mui/material';
 
 // Third-party Imports
 import classnames from 'classnames';
@@ -15,7 +15,8 @@ import {
   getCoreRowModel,
   useReactTable,
   getFilteredRowModel,
-  getSortedRowModel
+  getSortedRowModel,
+  getPaginationRowModel
 } from '@tanstack/react-table';
 
 // Component Imports
@@ -67,7 +68,7 @@ const ProductListTable = ({ productData }) => {
         )
       }),
       columnHelper.accessor('name', {
-        header: 'Name',
+        header: 'Nom',
         cell: ({ row }) => (
           <Typography variant="body1">{row.original.name || 'Name not available'}</Typography>
         )
@@ -98,16 +99,15 @@ const ProductListTable = ({ productData }) => {
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel()
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel()
   });
-  //<CardHeader title='Filters' className='pbe-4' />
-  //<ProductFilters setData={setData} productData={productData} />
 
   return (
     <div>
-    
       <Card>
-        
+        <CardHeader title='Filtres' className='pbe-4' />
+        <ProductFilters setData={setData} productData={productData} />
       </Card>
       <br/>
       <Card>
@@ -115,7 +115,7 @@ const ProductListTable = ({ productData }) => {
           <DebouncedInput
             value={globalFilter ?? ''}
             onChange={value => setGlobalFilter(String(value))}
-            placeholder='Search Product'
+            placeholder='Rechercher un produit'
             className='is-full sm:is-auto'
           />
         </div>
@@ -169,6 +169,14 @@ const ProductListTable = ({ productData }) => {
             )}
           </table>
         </div>
+        <TablePagination
+          component='div'
+          count={table.getPageCount() * table.getState().pagination.pageSize}
+          rowsPerPage={table.getState().pagination.pageSize}
+          page={table.getState().pagination.pageIndex}
+          onPageChange={(_, page) => table.setPageIndex(page)}
+          onRowsPerPageChange={e => table.setPageSize(Number(e.target.value))}
+        />
       </Card>
     </div>
   );

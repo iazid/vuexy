@@ -61,16 +61,16 @@ const VerticalMenu = ({ scrollMenu }) => {
         menuSectionStyles={menuSectionStyles(verticalNavOptions, theme)}
       >
         <MenuItem href='/home' icon={<i className='tabler-smart-home' />}>
-          Home
+          Accueil
         </MenuItem>
         <MenuItem href='/about' icon={<i className='tabler-info-circle' />}>
-          About
+          A propos
         </MenuItem>
         <MenuItem href='/events' icon={<i className='tabler-star' />}>
-          Events
+          Evenements
         </MenuItem>
         <MenuItem href='/products' icon={<i className='tabler-bottle' />}>
-          Products
+          Produits
         </MenuItem>
       </Menu>
       {/* <Menu
