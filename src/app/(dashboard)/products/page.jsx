@@ -7,7 +7,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from '../../firebase/firebaseconfigdb';
 
 // Importations de composants
-import ProductListTable from '../../../views/products/ProductListTable'; 
+import ProductListTable from '../../../views/products/product list/ProductListTable'; 
 import ProductTypeFactory from '../../../utils/ProductTypeFactory';
 import ProductFactory from '../../../utils/ProductFactory'; 
 import CircularProgress from '@mui/material/CircularProgress';

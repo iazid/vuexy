@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 
 // MUI Imports
-import { Card, Typography, MenuItem, styled, CardHeader, TablePagination } from '@mui/material';
+import { Card, Typography, styled, CardHeader, TablePagination } from '@mui/material';
 
 // Third-party Imports
 import classnames from 'classnames';
@@ -24,9 +24,6 @@ import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import CustomTextField from '@core/components/mui/TextField';
 import ProductFilters from './ProductFilters';
-
-// Util Imports
-import { getInitials } from '@/utils/getInitials';
 
 const Icon = styled('i')({});
 
@@ -48,9 +45,10 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   return <CustomTextField {...props} value={value} onChange={e => setValue(e.target.value)} />;
 };
 
-const ProductListTable = ({ productData }) => {
+const ProductListTable = ({ productData, productTypes }) => {
   const [data, setData] = useState([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState(''); // New state for type filter
   const { lang: locale } = useParams();
 
   useEffect(() => {
@@ -84,13 +82,24 @@ const ProductListTable = ({ productData }) => {
         cell: ({ row }) => (
           <Typography variant="body2">{row.original.date !== 'not indicated' ? new Date(row.original.date).toLocaleDateString() : 'Date not available'}</Typography>
         )
+      }),
+      columnHelper.accessor('productTypeName', {
+        header: 'Type',
+        cell: ({ row }) => (
+          <Typography variant="body2">{row.original.productTypeName || 'Type not available'}</Typography>
+        )
       })
     ],
-    []
+    [productTypes]
   );
 
+  const filteredData = useMemo(() => {
+    if (!typeFilter) return data;
+    return data.filter(product => product.productTypeName === typeFilter);
+  }, [data, typeFilter]);
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: {
       globalFilter
@@ -107,7 +116,7 @@ const ProductListTable = ({ productData }) => {
     <div>
       <Card>
         <CardHeader title='Filtres' className='pbe-4' />
-        <ProductFilters setData={setData} productData={productData} />
+        <ProductFilters setData={setData} productData={productData} productTypes={productTypes} setTypeFilter={setTypeFilter} />
       </Card>
       <br/>
       <Card>
