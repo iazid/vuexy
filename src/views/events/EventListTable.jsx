@@ -29,7 +29,6 @@ import CustomTextField from '@core/components/mui/TextField';
 import EventFilters from './EventFilters';
 
 // Util Imports
-import { getInitials } from '@/utils/getInitials';
 import { fetchEvents } from '../../redux-store/slices/event';
 
 const Icon = styled('i')({});

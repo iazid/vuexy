@@ -1,34 +1,28 @@
 'use client'
 
-// Importations React
-import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { adb } from '../../firebase/firebaseconfigdb';
-
-// Importations de composants
-import ProductTypeListTable from '../../../views/products/product types/ProductTypeTable'; 
-import ProductTypeFactory from '../../../utils/ProductTypeFactory';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProductTypes } from '../../../redux-store/slices/productType';
+import ProductTypeListTable from '../../../views/products/product types/ProductTypeTable';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 
-const ProductTypesPage = () => {
-  const [productTypes, setProductTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
+const ProductTypeListPage = () => {
+  const dispatch = useDispatch();
+  const { productTypes, status, error } = useSelector(state => state.productTypes);
 
   useEffect(() => {
-    const fetchProductTypes = async () => {
-      const productTypesCollectionRef = collection(adb, 'productTypes');
-      const productTypesData = await getDocs(productTypesCollectionRef);
-      const productTypesList = productTypesData.docs.map(doc => ProductTypeFactory(doc));
-      
-      setProductTypes(productTypesList);
-      setLoading(false);
-    };
+    if (status === 'idle') {
+      dispatch(fetchProductTypes());
+    }
+  }, [status, dispatch]);
 
-    fetchProductTypes();
-  }, []);
+  const productTypesWithCount = productTypes.map(type => ({
+    ...type,
+    productCount: type.products ? type.products.length : 0
+  }));
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -36,13 +30,16 @@ const ProductTypesPage = () => {
     );
   }
 
+  if (status === 'failed') {
+    return <div>Error: {error}</div>;
+  }
+
   return (
     <div>
-      <h1>Product Types</h1>
-      <br/> 
-      <ProductTypeListTable productTypes={productTypes} />
+      <br/>
+      <ProductTypeListTable productTypes={productTypesWithCount} />
     </div>
   );
 };
 
-export default ProductTypesPage;
+export default ProductTypeListPage;

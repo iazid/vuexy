@@ -1,52 +1,57 @@
 'use client'
 
-// Importations React
-import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProductTypes } from '../../../redux-store/slices/productType';
+import { doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from '../../firebase/firebaseconfigdb';
-
-// Importations de composants
-import ProductListTable from '../../../views/products/product list/ProductListTable'; 
-import ProductTypeFactory from '../../../utils/ProductTypeFactory';
-import ProductFactory from '../../../utils/ProductFactory'; 
+import ProductFactory from '../../../utils/ProductFactory';
+import ProductListTable from '../../../views/products/product list/ProductListTable';
+import ProductFilters from '../../../views/products/product list/ProductFilters'; // Import the new filters component
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 
 const ProductsPage = () => {
-  const [productTypes, setProductTypes] = useState([]);
+  const dispatch = useDispatch();
+  const { productTypes, status, error } = useSelector(state => state.productTypes);
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [filteredProducts, setFilteredProducts] = useState([]);
 
   useEffect(() => {
-    const fetchProductTypes = async () => {
-      const productTypesCollectionRef = collection(adb, 'productTypes');
-      const productTypesData = await getDocs(productTypesCollectionRef);
-      const productTypesList = productTypesData.docs.map(doc => ProductTypeFactory(doc));
-      
-      setProductTypes(productTypesList);
+    if (status === 'idle') {
+      dispatch(fetchProductTypes());
+    }
+  }, [status, dispatch]);
 
-      // Fetch all products
+  useEffect(() => {
+    const fetchProducts = async () => {
       const allProducts = [];
-      for (const productType of productTypesList) {
-        for (const productRef of productType.products) {
+      for (const type of productTypes) {
+        for (const productRef of type.products) {
           const productDoc = await getDoc(doc(adb, productRef.path));
           if (productDoc.exists()) {
-            let product = ProductFactory(productDoc);
-            const imageRef = ref(storagedb, `products/${productDoc.id}/pic`); 
-            product.pic = await getDownloadURL(imageRef).catch(() => 'products/${productDoc.id}/pic');
+            let product = {
+              ...ProductFactory(productDoc),
+              type: type.name // Attach the type name to each product
+            };
+            const imageRef = ref(storagedb, `products/${productDoc.id}/pic`);
+            product.pic = await getDownloadURL(imageRef).catch(() => `products/${productDoc.id}/pic`);
             allProducts.push(product);
           }
         }
       }
+
       setProducts(allProducts);
-      setLoading(false);
+      setFilteredProducts(allProducts);
     };
 
-    fetchProductTypes();
-  }, []);
+    if (productTypes.length > 0) {
+      fetchProducts();
+    }
+  }, [productTypes]);
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -54,10 +59,16 @@ const ProductsPage = () => {
     );
   }
 
+  if (status === 'failed') {
+    return <div>Error: {error}</div>;
+  }
+
   return (
     <div>
-      <h1>Produits</h1>
-      <ProductListTable productData={products} />
+      <br/>
+      <ProductFilters setData={setFilteredProducts} productData={products} productTypes={productTypes} />
+      <br/>
+      <ProductListTable productData={filteredProducts} />
     </div>
   );
 };

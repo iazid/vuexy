@@ -1,67 +1,83 @@
-// Importations React
+// React Imports
 import { useState, useEffect } from 'react';
 
-// Importations MUI
+// MUI Imports
+import { Card, CardHeader } from '@mui/material';
 import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 
-// Importations de composants
+// Component Imports
 import CustomTextField from '@core/components/mui/TextField';
 
-const ProductFilters = ({ setData, productData }) => {
-  // États
-  const [productType, setProductType] = useState('');
-  const [dateFilter, setDateFilter] = useState('all');
+const ProductFilters = ({ setData, productData, productTypes }) => {
+  // States
+  const [dateFilter, setDateFilter] = useState('');
+  const [selectedType, setSelectedType] = useState('');
 
   useEffect(() => {
-    const filteredData = productData?.filter(product => {
-      const productDate = new Date(product.date);
-      const today = new Date();
+    let filteredData = [...productData];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (productType && product.productType !== productType) return false;
-      if (dateFilter === 'passed' && productDate >= today) return false;
-      if (dateFilter === 'today' && (productDate.getDate() !== today.getDate() || productDate.getMonth() !== today.getMonth() || productDate.getFullYear() !== today.getFullYear())) return false;
-      if (dateFilter === 'upcoming' && productDate < today) return false;
+    if (selectedType) {
+      filteredData = filteredData.filter(product => product.type === selectedType);
+    }
 
-      return true;
-    });
+    if (dateFilter === 'upcoming') {
+      filteredData = filteredData.filter(product => new Date(product.date) > today);
+    } else if (dateFilter === 'today') {
+      filteredData = filteredData.filter(product => {
+        const productDate = new Date(product.date);
+        return productDate >= today && productDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      });
+    } else if (dateFilter === 'passed') {
+      filteredData = filteredData.filter(product => new Date(product.date) < today);
+    }
 
     setData(filteredData);
-  }, [productType, dateFilter, productData, setData]);
+  }, [dateFilter, selectedType, productData, setData]);
 
   return (
-    <CardContent>
-      <Grid container spacing={6}>
-        <Grid item xs={12} sm={6}>
-          <CustomTextField
-            select
-            fullWidth
-            id='select-product-type'
-            value={productType}
-            onChange={e => setProductType(e.target.value)}
-            SelectProps={{ displayEmpty: true }}
-          >
-            <MenuItem value=''>Sélectionner le type de produit</MenuItem>
-          </CustomTextField>
+    <Card>
+      <CardHeader title='Filters' className='pbe-4' />
+      <CardContent>
+        <Grid container spacing={6}>
+          <Grid item xs={12} sm={6}>
+            <CustomTextField
+              select
+              fullWidth
+              id='select-date-filter'
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+            >
+              <MenuItem value=''>Filtrer par date</MenuItem>
+              <MenuItem value='upcoming'>prochains produits</MenuItem>
+              <MenuItem value='today'>aujourd'hui</MenuItem>
+              <MenuItem value='passed'>produits passés</MenuItem>
+            </CustomTextField>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <CustomTextField
+              select
+              fullWidth
+              id='select-product-type'
+              value={selectedType}
+              onChange={e => setSelectedType(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+            >
+              <MenuItem value=''>Sélectionner le type de produit</MenuItem>
+              {productTypes.map(type => (
+                <MenuItem key={type.id} value={type.name}>
+                  {type.name}
+                </MenuItem>
+              ))}
+            </CustomTextField>
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={6}>
-          <CustomTextField
-            select
-            fullWidth
-            id='select-date-filter'
-            value={dateFilter}
-            onChange={e => setDateFilter(e.target.value)}
-            SelectProps={{ displayEmpty: true }}
-          >
-            <MenuItem value='all'>Toutes les dates</MenuItem>
-            <MenuItem value='upcoming'>Produits à venir</MenuItem>
-            <MenuItem value='today'>Produits d'aujourd'hui</MenuItem>
-            <MenuItem value='passed'>Produits passés</MenuItem>
-          </CustomTextField>
-        </Grid>
-      </Grid>
-    </CardContent>
+      </CardContent>
+    </Card>
   );
 };
 
