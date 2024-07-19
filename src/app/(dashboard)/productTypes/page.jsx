@@ -1,15 +1,19 @@
 'use client'
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductTypes } from '../../../redux-store/slices/productType';
 import ProductTypeListTable from '../../../views/products/product types/ProductTypeTable';
+import AddProductTypeDrawer from '../../../views/products/product types/AddProductTypeDrawer';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
+import { Button } from '@mui/material';
 
 const ProductTypeListPage = () => {
   const dispatch = useDispatch();
   const { productTypes, status, error } = useSelector(state => state.productTypes);
+  const [addProductTypeOpen, setAddProductTypeOpen] = useState(false);
+  const [localProductTypes, setLocalProductTypes] = useState([]);
 
   useEffect(() => {
     if (status === 'idle') {
@@ -17,7 +21,11 @@ const ProductTypeListPage = () => {
     }
   }, [status, dispatch]);
 
-  const productTypesWithCount = productTypes.map(type => ({
+  useEffect(() => {
+    setLocalProductTypes(productTypes);
+  }, [productTypes]);
+
+  const productTypesWithCount = localProductTypes.map(type => ({
     ...type,
     productCount: type.products ? type.products.length : 0
   }));
@@ -36,8 +44,13 @@ const ProductTypeListPage = () => {
 
   return (
     <div>
-      <br/>
-      <ProductTypeListTable productTypes={productTypesWithCount} />
+      
+      <ProductTypeListTable productTypes={productTypesWithCount} setAddProductTypeOpen={setAddProductTypeOpen} />
+      <AddProductTypeDrawer
+        open={addProductTypeOpen}
+        handleClose={() => setAddProductTypeOpen(false)}
+        setData={setLocalProductTypes}
+      />
     </div>
   );
 };

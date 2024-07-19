@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { Typography, Card, CardHeader, TablePagination } from '@mui/material';
+'use client'
 
+import React, { useEffect, useState, useMemo } from 'react';
+import { Typography, Card, CardHeader, Button, MenuItem } from '@mui/material';
 import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import {
@@ -8,10 +9,37 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
 } from '@tanstack/react-table';
+import { rankItem } from '@tanstack/match-sorter-utils'
+import CustomTextField from '@core/components/mui/TextField';
+import TablePagination from '@mui/material/TablePagination';
+import TablePaginationComponent from '@components/TablePaginationComponent';
 
-const ProductListTable = ({ productData }) => {
+// Définir le composant DebouncedInput pour la barre de recherche
+const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      onChange(value);
+    }, debounce);
+
+    return () => clearTimeout(timeout);
+  }, [value, onChange, debounce]);
+
+  return <CustomTextField {...props} value={value} onChange={e => setValue(e.target.value)} />;
+};
+
+const ProductListTable = ({ productData, setAddProductOpen }) => {
   const columnHelper = createColumnHelper();
+  const [globalFilter, setGlobalFilter] = useState('');
 
   const columns = useMemo(() => [
     columnHelper.accessor('pic', {
@@ -26,21 +54,65 @@ const ProductListTable = ({ productData }) => {
       header: 'Description',
       cell: info => <Typography variant="body2">{info.row.original.description}</Typography>
     }),
-    columnHelper.accessor('date', {
-      header: 'Date',
-      cell: info => <Typography variant="body2">{new Date(info.row.original.date).toLocaleDateString()}</Typography>
+    columnHelper.accessor('numberOfCapacities', {
+      header: 'Nombre de Capacités',
+      cell: info => <Typography variant="body2">{info.row.original.numberOfCapacities}</Typography>
     }),
   ], []);
 
   const tableInstance = useReactTable({
     data: productData,
     columns,
+    filterFns: {
+      fuzzy: (row, columnId, value, addMeta) => {
+        const itemRank = rankItem(row.getValue(columnId), value);
+        addMeta({ itemRank });
+        return itemRank.passed;
+      },
+    },
+    state: {
+      globalFilter,
+    },
+    globalFilterFn: 'fuzzy',
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   return (
     <Card>
       <CardHeader title="Liste des Produits" />
+      <div className="flex justify-between flex-col items-start md:flex-row md:items-center p-6 border-bs gap-4">
+        <CustomTextField
+          select
+          value={tableInstance.getState().pagination.pageSize}
+          onChange={e => tableInstance.setPageSize(Number(e.target.value))}
+          className="is-[70px]"
+        >
+          <MenuItem value="10">10</MenuItem>
+          <MenuItem value="25">25</MenuItem>
+          <MenuItem value="50">50</MenuItem>
+        </CustomTextField>
+        <div className="flex flex-col sm:flex-row is-full sm:is-auto items-start sm:items-center gap-4">
+          <DebouncedInput
+            value={globalFilter ?? ''}
+            onChange={value => setGlobalFilter(String(value))}
+            placeholder="Rechercher produit"
+            className="is-full sm:is-auto"
+          />
+          
+          <Button
+            variant="contained"
+            startIcon={<i className="tabler-plus" />}
+            onClick={() => setAddProductOpen(true)}
+            className="is-full sm:is-auto"
+          >
+            Ajouter un nouveau produit
+          </Button>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className={tableStyles.table}>
           <thead>
@@ -66,15 +138,15 @@ const ProductListTable = ({ productData }) => {
             ))}
           </tbody>
         </table>
-        <TablePagination
-          component="div"
-          count={tableInstance.getRowModel().rows.length}
-          onPageChange={(event, newPage) => tableInstance.setPageIndex(newPage)}
-          onRowsPerPageChange={event => tableInstance.setPageSize(Number(event.target.value))}
-          page={tableInstance.getState().pagination.pageIndex}
-          rowsPerPage={tableInstance.getState().pagination.pageSize}
-        />
       </div>
+      <TablePagination
+        component="div"
+        count={tableInstance.getRowModel().rows.length}
+        onPageChange={(event, newPage) => tableInstance.setPageIndex(newPage)}
+        onRowsPerPageChange={event => tableInstance.setPageSize(Number(event.target.value))}
+        page={tableInstance.getState().pagination.pageIndex}
+        rowsPerPage={tableInstance.getState().pagination.pageSize}
+      />
     </Card>
   );
 };
