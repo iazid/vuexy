@@ -1,14 +1,17 @@
 'use client'
 
-import React, {  useState } from 'react';
-import { Button, Drawer, IconButton, MenuItem, Typography, Divider } from '@mui/material';
+import React, { useState } from 'react';
+import { Button, Drawer, IconButton, Typography, Divider, FormControlLabel, Checkbox, FormGroup } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import CustomTextField from '@core/components/mui/TextField';
 
 const initialData = {
   name: '',
-  description: ''
+  description: '',
+  type: ''
 };
+
+const productTypeOptions = ['Boisson', 'Soft', 'Nourriture', 'Goodies', 'Matériel'];
 
 const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
   const [formData, setFormData] = useState(initialData);
@@ -40,6 +43,14 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
     setFormData(initialData);
   };
 
+  const handleCheckboxChange = (field, option) => {
+    if (field.value === option) {
+      field.onChange('');
+    } else {
+      field.onChange(option);
+    }
+  };
+
   return (
     <Drawer
       open={open}
@@ -50,7 +61,7 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
       sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}
     >
       <div className='flex items-center justify-between plb-5 pli-6'>
-        <Typography variant='h5'>Add New Product Type</Typography>
+        <Typography variant='h5'>Ajouter un nouveau type de produit</Typography>
         <IconButton size='small' onClick={handleReset}>
           <i className='tabler-x text-2xl text-textPrimary' />
         </IconButton>
@@ -66,32 +77,53 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
               <CustomTextField
                 {...field}
                 fullWidth
-                label='Product Type Name'
-                placeholder='Product Type Name'
-                {...(errors.name && { error: true, helperText: 'This field is required.' })}
+                label='Nom du type de produit'
+                placeholder='Nom du type de produit'
+                {...(errors.name && { error: true, helperText: 'Ce champ est requis.' })}
               />
             )}
           />
           <Controller
-            name='description'
+            name='description '
             control={control}
-            rules={{ required: true }}
             render={({ field }) => (
               <CustomTextField
                 {...field}
                 fullWidth
-                label='Description'
-                placeholder='Product Type Description'
-                {...(errors.description && { error: true, helperText: 'This field is required.' })}
+                label='Description (facultatif)'
+                placeholder='Description du type de produit'
+                {...(errors.description && { error: true, helperText: 'Ce champ est requis.' })}
               />
+            )}
+          />
+          <Controller
+            name='type'
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <FormGroup>
+                {productTypeOptions.map(option => (
+                  <FormControlLabel
+                    key={option}
+                    control={
+                      <Checkbox
+                        checked={field.value === option}
+                        onChange={() => handleCheckboxChange(field, option)}
+                      />
+                    }
+                    label={option}
+                  />
+                ))}
+                {errors.type && <Typography color="error">Veuillez sélectionner un type de produit.</Typography>}
+              </FormGroup>
             )}
           />
           <div className='flex items-center gap-4'>
             <Button variant='contained' type='submit'>
-              Submit
+              Ajouter
             </Button>
             <Button variant='tonal' color='error' type='reset' onClick={handleReset}>
-              Cancel
+              Annuler
             </Button>
           </div>
         </form>

@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Typography, Card, CardHeader, Button, IconButton, MenuItem } from '@mui/material';
-import OptionMenu from '@core/components/option-menu'
+import OptionMenu from '@core/components/option-menu';
 import tableStyles from '@core/styles/table.module.css';
 import {
   createColumnHelper,
@@ -15,8 +16,6 @@ import {
 } from '@tanstack/react-table';
 import CustomTextField from '@core/components/mui/TextField';
 import TablePagination from '@mui/material/TablePagination';
-
-
 
 const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
   const [value, setValue] = useState(initialValue);
@@ -39,26 +38,31 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
 const ProductTypeListTable = ({ productTypes, setAddProductTypeOpen }) => {
   const columnHelper = createColumnHelper();
   const [globalFilter, setGlobalFilter] = useState('');
+  const router = useRouter();
 
   const columns = useMemo(() => [
     columnHelper.accessor('name', {
       header: 'Nom',
-      cell: info => <Typography variant="body1">{info.row.original.name}</Typography>
+      cell: info => (
+        <Typography
+          variant="body1"
+          onClick={() => router.push(`/products?type=${info.row.original.name}`)}
+          style={{ cursor: 'pointer', color: 'blue' }}
+        >
+          {info.row.original.name}
+        </Typography>
+      )
     }),
     columnHelper.accessor('idblank', {
       header: '',
-      
     }),
-    
     columnHelper.accessor('productCount', {
       header: 'Nombre de Produits',
       cell: info => <Typography variant="body2">{info.row.original.productCount}</Typography>
     }),
     columnHelper.accessor('idblank', {
       header: '',
-      
     }),
-    
     columnHelper.accessor('action', {
       header: 'Action',
       cell: ({ row }) => (
@@ -89,7 +93,7 @@ const ProductTypeListTable = ({ productTypes, setAddProductTypeOpen }) => {
       ),
       enableSorting: false
     })
-  ], []);
+  ], [router]);
 
   const tableInstance = useReactTable({
     data: productTypes,
@@ -133,7 +137,6 @@ const ProductTypeListTable = ({ productTypes, setAddProductTypeOpen }) => {
             placeholder="Rechercher un Type"
             className="is-full sm:is-auto"
           />
-         
           <Button
             variant="contained"
             startIcon={<i className="tabler-plus" />}

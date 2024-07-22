@@ -11,7 +11,7 @@ import {
   useReactTable,
   getFilteredRowModel,
   getPaginationRowModel,
-  getSortedRowModel,
+  getSortedRowModel, 
 } from '@tanstack/react-table';
 import { rankItem } from '@tanstack/match-sorter-utils'
 import CustomTextField from '@core/components/mui/TextField';

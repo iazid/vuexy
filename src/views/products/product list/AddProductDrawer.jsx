@@ -1,51 +1,41 @@
-// AddProductDrawer.js
 'use client'
 
 import React, { useState } from 'react';
-import { Button, Drawer, IconButton, MenuItem, Typography, Divider } from '@mui/material';
-import { useForm, Controller } from 'react-hook-form';
-import CustomTextField from '@core/components/mui/TextField';
+import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid } from '@mui/material';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 
 const initialData = {
+  name: '',
   description: '',
-  price: 0,
-  type: ''
+  type: '',
+  capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'CL' }]
 };
 
 const AddProductDrawer = ({ open, handleClose, productData, setData, productTypes }) => {
-  const [formData, setFormData] = useState(initialData);
+  const { control, reset, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: initialData
+  });
 
-  const {
+  const { fields, append, remove } = useFieldArray({
     control,
-    reset: resetForm,
-    handleSubmit,
-    formState: { errors }
-  } = useForm({
-    defaultValues: {
-      name: '',
-      description: '',
-      price: 0,
-      type: ''
-    }
+    name: 'capacities'
   });
 
   const onSubmit = data => {
     const newProduct = {
       id: (productData?.length && productData?.length + 1) || 1,
       pic: `/images/products/default.png`, // Replace with actual image upload logic
-      ...data,
-      numberOfCapacities: 0 // Initially set to 0
+      ...data
     };
 
     setData([...(productData ?? []), newProduct]);
     handleClose();
-    setFormData(initialData);
-    resetForm({ name: '', description: '', price: 0, type: '' });
+    reset(initialData);
   };
 
   const handleReset = () => {
     handleClose();
-    setFormData(initialData);
+    reset(initialData);
   };
 
   return (
@@ -55,90 +45,150 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
       variant='temporary'
       onClose={handleReset}
       ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}
+      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 500, md: 600 } } }} // Increase the width here
     >
-      <div className='flex items-center justify-between plb-5 pli-6'>
-        <Typography variant='h5'>Add New Product</Typography>
+      <Box className='flex items-center justify-between p-5'>
+        <Typography variant='h5'>Ajouter un nouveau produit</Typography>
         <IconButton size='small' onClick={handleReset}>
           <i className='tabler-x text-2xl text-textPrimary' />
         </IconButton>
-      </div>
+      </Box>
       <Divider />
-      <div>
-        <form onSubmit={handleSubmit(data => onSubmit(data))} className='flex flex-col gap-6 p-6'>
-          <Controller
-            name='name'
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Product Name'
-                placeholder='Product Name'
-                {...(errors.name && { error: true, helperText: 'This field is required.' })}
-              />
-            )}
-          />
-          <Controller
-            name='description'
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Description'
-                placeholder='Product Description'
-                {...(errors.description && { error: true, helperText: 'This field is required.' })}
-              />
-            )}
-          />
-          <Controller
-            name='price'
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                type='number'
-                label='Price'
-                placeholder='Price'
-                {...(errors.price && { error: true, helperText: 'This field is required.' })}
-              />
-            )}
-          />
-          <Controller
-            name='type'
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <CustomTextField
-                select
-                fullWidth
-                label='Select Type'
-                {...field}
-                {...(errors.type && { error: true, helperText: 'This field is required.' })}
-              >
-                {productTypes.map(type => (
-                  <MenuItem key={type.id} value={type.name}>
-                    {type.name}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
-            )}
-          />
-          <div className='flex items-center gap-4'>
-            <Button variant='contained' type='submit'>
-              Submit
-            </Button>
-            <Button variant='tonal' color='error' type='reset' onClick={handleReset}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </div>
+      <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
+        <Controller
+          name='name'
+          control={control}
+          rules={{ required: true }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label='Nom du produit'
+              placeholder='Nom du produit'
+              {...(errors.name && { error: true, helperText: 'Ce champ est requis.' })}
+            />
+          )}
+        />
+        <Controller
+          name='description'
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label='Description (facultatif)'
+              placeholder='Description du produit'
+            />
+          )}
+        />
+        <Controller
+          name='type'
+          control={control}
+          rules={{ required: true }}
+          render={({ field }) => (
+            <TextField
+              select
+              fullWidth
+              label='Type de produit'
+              {...field}
+              {...(errors.type && { error: true, helperText: 'Ce champ est requis.' })}
+            >
+              {productTypes.map(type => (
+                <MenuItem key={type.id} value={type.name}>
+                  {type.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+        />
+        <Box>
+          <Typography variant='h6'>Contenances</Typography>
+          <br/>
+          {fields.map((field, index) => (
+            <Grid container spacing={2} alignItems="center" key={field.id} sx={{ marginBottom: 2 }}>
+              <Grid item xs={3}>
+                <Controller
+                  name={`capacities.${index}.price`}
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label='Prix'
+                      type='number'
+                      fullWidth
+                      {...(errors.capacities?.[index]?.price && { error: true, helperText: 'Ce champ est requis.' })}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <Controller
+                  name={`capacities.${index}.quantity`}
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label='Quantité'
+                      type='number'
+                      fullWidth
+                      {...(errors.capacities?.[index]?.quantity && { error: true, helperText: 'Ce champ est requis.' })}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <Controller
+                  name={`capacities.${index}.capacity`}
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label='Capacité'
+                      type='number'
+                      fullWidth
+                      {...(errors.capacities?.[index]?.capacity && { error: true, helperText: 'Ce champ est requis.' })}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={2}>
+                <Controller
+                  name={`capacities.${index}.unit`}
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl fullWidth variant='standard'>
+                      <InputLabel shrink={false}></InputLabel>
+                      <Select {...field} disableUnderline>
+                        <MenuItem value="CL">CL</MenuItem>
+                        <MenuItem value="L">L</MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+              </Grid>
+              <Grid item xs={1}>
+                <IconButton onClick={() => remove(index)}>
+                  <i className='tabler-trash text-textSecondary' />
+                </IconButton>
+              </Grid>
+            </Grid>
+          ))}
+          <Button onClick={() => append({ price: 0, quantity: 0, capacity: 0, unit: 'CL' })}>
+            Ajouter une contenance
+          </Button>
+        </Box>
+        <Box display="flex" justifyContent="space-between">
+          <Button variant='contained' type='submit'>
+            Terminer
+          </Button>
+          <Button variant='tonal' color='error' type='reset' onClick={handleReset}>
+            Annuler
+          </Button>
+        </Box>
+      </Box>
     </Drawer>
   );
 };
