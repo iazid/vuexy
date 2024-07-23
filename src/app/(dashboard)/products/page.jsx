@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'next/navigation';
 import { fetchProductTypes } from '../../../redux-store/slices/productType';
 import { fetchCapacities } from '../../../redux-store/slices/capacity';
 import ProductListTable from '../../../views/products/product list/ProductListTable';
@@ -16,6 +17,9 @@ import ProductFactory from '../../../utils/ProductFactory';
 
 const ProductsPage = () => {
   const dispatch = useDispatch();
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type') || '';
+
   const { productTypes, status: productTypeStatus, error: productTypeError } = useSelector(state => state.productTypes);
   const { capacities, status: capacityStatus, error: capacityError } = useSelector(state => state.capacities);
   const [products, setProducts] = useState([]);
@@ -65,6 +69,12 @@ const ProductsPage = () => {
     }
   }, [productTypes]);
 
+  useEffect(() => {
+    if (!initialType) {
+      setFilteredProducts(products);
+    }
+  }, [initialType, products]);
+
   if (productTypeStatus === 'loading' || capacityStatus === 'loading') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -83,8 +93,7 @@ const ProductsPage = () => {
 
   return (
     <div>
-      
-      <ProductFilters setData={setFilteredProducts} productData={products} productTypes={productTypes} />
+      <ProductFilters setData={setFilteredProducts} productData={products} productTypes={productTypes} initialType={initialType} />
       <br />
       <ProductListTable productData={filteredProducts} setAddProductOpen={setAddProductOpen} />
       <AddProductDrawer

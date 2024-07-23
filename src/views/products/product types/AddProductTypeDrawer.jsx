@@ -1,9 +1,12 @@
-'use client'
 
-import React, { useState } from 'react';
-import { Button, Drawer, IconButton, Typography, Divider, FormControlLabel, Checkbox, FormGroup } from '@mui/material';
+
+import React from 'react';
+import { Button, Drawer, IconButton, Typography, Divider, FormControlLabel, Radio, RadioGroup } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import CustomTextField from '@core/components/mui/TextField';
+import FirebaseService from '../../../app/firebase/firebaseService';
+import { useDispatch } from 'react-redux';
+import { fetchProductTypes } from '../../../redux-store/slices/productType'; // Importez l'action de récupération des types de produits
 
 const initialData = {
   name: '',
@@ -14,7 +17,7 @@ const initialData = {
 const productTypeOptions = ['Boisson', 'Soft', 'Nourriture', 'Goodies', 'Matériel'];
 
 const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
-  const [formData, setFormData] = useState(initialData);
+  const dispatch = useDispatch();
 
   const {
     control,
@@ -25,30 +28,30 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
     defaultValues: initialData
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     const newProductType = {
       ...data,
       products: []
     };
 
-    // Update local state
-    setData(prevTypes => [...(prevTypes ?? []), newProductType]);
-    handleClose();
-    setFormData(initialData);
-    resetForm(initialData);
+    try {
+      
+      await FirebaseService.addProductType(data.type, data.type, data.name, data.description);
+      
+      setData(prevTypes => [...(prevTypes ?? []), newProductType]);
+      
+      dispatch(fetchProductTypes());
+      handleClose();
+      resetForm(initialData);
+    } catch (error) {
+      console.error('Error adding product type:', error);
+      alert('Erreur lors de l\'ajout du type de produit.');
+    }
   };
 
   const handleReset = () => {
     handleClose();
-    setFormData(initialData);
-  };
-
-  const handleCheckboxChange = (field, option) => {
-    if (field.value === option) {
-      field.onChange('');
-    } else {
-      field.onChange(option);
-    }
+    resetForm(initialData);
   };
 
   return (
@@ -84,7 +87,7 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
             )}
           />
           <Controller
-            name='description '
+            name='description'
             control={control}
             render={({ field }) => (
               <CustomTextField
@@ -101,23 +104,22 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
             control={control}
             rules={{ required: true }}
             render={({ field }) => (
-              <FormGroup>
+              <RadioGroup
+                {...field}
+                onChange={(e) => field.onChange(e.target.value)}
+              >
                 {productTypeOptions.map(option => (
                   <FormControlLabel
                     key={option}
-                    control={
-                      <Checkbox
-                        checked={field.value === option}
-                        onChange={() => handleCheckboxChange(field, option)}
-                      />
-                    }
+                    value={option}
+                    control={<Radio />}
                     label={option}
                   />
                 ))}
-                {errors.type && <Typography color="error">Veuillez sélectionner un type de produit.</Typography>}
-              </FormGroup>
+              </RadioGroup>
             )}
           />
+          {errors.type && <Typography color="error">Veuillez sélectionner un type de produit.</Typography>}
           <div className='flex items-center gap-4'>
             <Button variant='contained' type='submit'>
               Ajouter

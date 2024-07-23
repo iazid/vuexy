@@ -1,19 +1,10 @@
-// React Imports
 import { useState, useEffect } from 'react';
-
-// MUI Imports
-import { Card, CardHeader } from '@mui/material';
-import CardContent from '@mui/material/CardContent';
-import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
-
-// Component Imports
+import { Card, CardHeader, CardContent, Grid, MenuItem } from '@mui/material';
 import CustomTextField from '@core/components/mui/TextField';
 
-const ProductFilters = ({ setData, productData, productTypes }) => {
-  // States
+const ProductFilters = ({ setData, productData, productTypes, initialType }) => {
   const [dateFilter, setDateFilter] = useState('');
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState(initialType);
 
   useEffect(() => {
     let filteredData = [...productData];
@@ -37,6 +28,10 @@ const ProductFilters = ({ setData, productData, productTypes }) => {
 
     setData(filteredData);
   }, [dateFilter, selectedType, productData, setData]);
+
+  useEffect(() => {
+    setSelectedType(initialType);
+  }, [initialType]);
 
   return (
     <Card>

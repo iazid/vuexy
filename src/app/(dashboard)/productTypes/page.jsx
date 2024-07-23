@@ -44,7 +44,6 @@ const ProductTypeListPage = () => {
 
   return (
     <div>
-      
       <ProductTypeListTable productTypes={productTypesWithCount} setAddProductTypeOpen={setAddProductTypeOpen} />
       <AddProductTypeDrawer
         open={addProductTypeOpen}
