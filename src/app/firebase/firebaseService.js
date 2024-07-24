@@ -1,12 +1,21 @@
+// src/services/FirebaseService.js
+
 import axios from 'axios';
-import { auth, adb, storagedb } from './firebaseconfigdb';
 import { collection, addDoc, doc, setDoc, getDocs, query, where, orderBy, getDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { adb, storagedb } from './firebaseconfigdb';
+import { PRODUCT_TYPE, CATEGORY } from '../../utils/ProductType';
 
 const baseUri = "https://us-central1-no-matter-ba487.cloudfunctions.net";
 
 class FirebaseService {
+  /**
+   * @param {CATEGORY} selectedCategory
+   * @param {PRODUCT_TYPE} productType
+   * @param {string} name
+   * @param {string} description
+   * @returns {Promise<void>}
+   */
   static async addProductType(selectedCategory, productType, name, description) {
     try {
       await addDoc(collection(adb, 'productTypes'), {
@@ -251,6 +260,7 @@ class FirebaseService {
 
   static async getAdmins() {
     try {
+      const functions = getFunctions();
       const getAdminUsers = httpsCallable(functions, 'getAdminUsers');
       const result = await getAdminUsers();
       return result.data.adminUsers.map(adminData => adminData);

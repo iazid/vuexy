@@ -1,9 +1,12 @@
+'use client'
+
 import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid, Avatar } from '@mui/material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
+import Product from '../../../utils/Product';
 
 const initialData = {
   name: '',
@@ -13,7 +16,7 @@ const initialData = {
 };
 
 const AddProductDrawer = ({ open, handleClose, productData, setData, productTypes }) => {
-  const { control, reset, handleSubmit, formState: { errors }, setValue, watch } = useForm({
+  const { control, reset, handleSubmit, formState: { errors } } = useForm({
     defaultValues: initialData
   });
 
@@ -43,28 +46,21 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
     setLoading(true);
 
     try {
-      // Trouver l'ID du document pour le type de produit sélectionné
-      const selectedType = productTypes.find(type => type.name === data.type);
-      if (!selectedType) {
-        throw new Error('Type de produit non valide.');
-      }
-
-      console.log('Selected Type ID:', selectedType.id); // Afficher l'ID du type sélectionné
-
       const newProductRef = doc(collection(adb, 'products'));
       const productImageRef = ref(storagedb, `products/${newProductRef.id}/pic`);
       await uploadBytes(productImageRef, image);
       const imageURL = await getDownloadURL(productImageRef);
 
-      const newProduct = {
-        name: data.name,
-        description: data.description,
-        productType: doc(adb, `productTypes/${selectedType.id}`), // Utiliser la référence du document
+      const newProduct = new Product({
+        productRef: newProductRef,
+        productType: doc(adb, 'productTypes', data.type),
         pic: imageURL,
+        name: data.name,
         date: new Date(),
+        description: data.description,
         capacities: [],
         visible: true,
-      };
+      });
 
       const capacitiesRefs = await Promise.all(data.capacities.map(async (cap) => {
         const capRef = doc(collection(adb, 'capacities'));
@@ -75,11 +71,11 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
           quantity: parseInt(cap.quantity, 10),
           product: newProductRef
         });
-        newProduct.capacities.push(capRef);
+        newProduct.addCapacity(capRef);
         return capRef;
       }));
 
-      await setDoc(newProductRef, newProduct);
+      await newProduct.save();
       setData([...productData, newProduct]);
       handleClose();
       reset(initialData);
@@ -87,7 +83,7 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
       setImagePreview(null);
     } catch (error) {
       console.error('Erreur lors de l\'ajout du produit:', error);
-      alert(`Erreur lors de l'ajout du produit: ${error.message}`);
+      alert('Erreur lors de l\'ajout du produit.');
     } finally {
       setLoading(false);
     }
@@ -179,7 +175,7 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
               {...(errors.type && { error: true, helperText: 'Ce champ est requis.' })}
             >
               {productTypes.map(type => (
-                <MenuItem key={type.id} value={type.name}>
+                <MenuItem key={type.id} value={type.id}>
                   {type.name}
                 </MenuItem>
               ))}

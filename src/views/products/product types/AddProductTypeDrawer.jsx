@@ -1,17 +1,19 @@
-
+// src/components/AddProductTypeDrawer.js
 
 import React from 'react';
 import { Button, Drawer, IconButton, Typography, Divider, FormControlLabel, Radio, RadioGroup } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import CustomTextField from '@core/components/mui/TextField';
-import FirebaseService from '../../../app/firebase/firebaseService';
+import FirebaseService from '../../../app/firebase/FirebaseService';
 import { useDispatch } from 'react-redux';
-import { fetchProductTypes } from '../../../redux-store/slices/productType'; // Importez l'action de récupération des types de produits
+import { fetchProductTypes } from '../../../redux-store/slices/productType';
+import { CATEGORY, PRODUCT_TYPE } from '../../../utils/ProductType';
 
 const initialData = {
   name: '',
   description: '',
-  type: ''
+  type: PRODUCT_TYPE.CONSUMABLE,
+  category: CATEGORY.NONE
 };
 
 const productTypeOptions = ['Boisson', 'Soft', 'Nourriture', 'Goodies', 'Matériel'];
@@ -35,11 +37,8 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
     };
 
     try {
-      
-      await FirebaseService.addProductType(data.type, data.type, data.name, data.description);
-      
+      await FirebaseService.addProductType(data.category, data.type, data.name, data.description);
       setData(prevTypes => [...(prevTypes ?? []), newProductType]);
-      
       dispatch(fetchProductTypes());
       handleClose();
       resetForm(initialData);
@@ -82,7 +81,8 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
                 fullWidth
                 label='Nom du type de produit'
                 placeholder='Nom du type de produit'
-                {...(errors.name && { error: true, helperText: 'Ce champ est requis.' })}
+                error={!!errors.name}
+                helperText={errors.name ? 'Ce champ est requis.' : ''}
               />
             )}
           />
@@ -95,7 +95,8 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
                 fullWidth
                 label='Description (facultatif)'
                 placeholder='Description du type de produit'
-                {...(errors.description && { error: true, helperText: 'Ce champ est requis.' })}
+                error={!!errors.description}
+                helperText={errors.description ? 'Ce champ est requis.' : ''}
               />
             )}
           />
@@ -106,14 +107,14 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
             render={({ field }) => (
               <RadioGroup
                 {...field}
-                onChange={(e) => field.onChange(e.target.value)}
+                onChange={(e) => field.onChange(Number(e.target.value))}
               >
-                {productTypeOptions.map(option => (
+                {Object.values(PRODUCT_TYPE).map((value, index) => (
                   <FormControlLabel
-                    key={option}
-                    value={option}
+                    key={value}
+                    value={index}
                     control={<Radio />}
-                    label={option}
+                    label={productTypeOptions[index]}
                   />
                 ))}
               </RadioGroup>
