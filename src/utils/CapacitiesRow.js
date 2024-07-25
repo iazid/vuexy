@@ -28,8 +28,8 @@ const CapacitiesRow = ({ index, capacity, onCapacityChange }) => {
           value={capacity.unity}
           onChange={handleChange('unity')}
         >
-          <MenuItem value="CENTILITRES">Centilitres</MenuItem>
-          <MenuItem value="LITRES">Litres</MenuItem>
+          <MenuItem value="CL">Centilitres</MenuItem>
+          <MenuItem value="L">Litres</MenuItem>
           {/* Add other units as necessary */}
         </Select>
       </FormControl>

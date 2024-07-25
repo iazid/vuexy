@@ -13,7 +13,7 @@ const ProductFactory = (doc) => {
         description: data.description,
         name: data.name,
         pic: data.pic,
-        productType: data.productType,
+        productType: data.productType, // Ensure this stores the reference correctly
         visible: !!data.visible
     });
 };

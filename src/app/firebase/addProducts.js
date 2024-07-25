@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { TextField, Button, MenuItem, Avatar, FormControl, InputLabel, Select, CircularProgress } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import FirebaseService from '../services/FirebaseService';
+import FirebaseService from './firebaseService';
 import BorderedContainerWithTitle from '../components/BorderedContainerWithTitle';
 import CapacitiesRow from '../../utils/CapacitiesRow';
 

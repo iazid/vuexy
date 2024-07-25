@@ -1,51 +1,30 @@
-// capacity.js
+import { doc, setDoc } from 'firebase/firestore';
 
-import { createContext, useContext, useState } from 'react';
-import { adb } from '../app/firebase/firebaseconfigdb'; 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+class Capacity {
+  constructor({ capacityRef, productTypeRef, productRef, capacity, unity, price, quantity }) {
+    this.capacityRef = capacityRef;
+    this.productTypeRef = productTypeRef;
+    this.productRef = productRef;
+    this.capacity = capacity;
+    this.unity = unity;
+    this.price = price;
+    this.quantity = quantity;
+  }
 
-const CapacityContext = createContext();
+  toMap() {
+    return {
+      capacity: this.capacity,
+      unity: this.unity,
+      price: this.price,
+      quantity: this.quantity,
+      product: this.productRef,
+      productType: this.productTypeRef,
+    };
+  }
 
-export const useCapacity = () => {
-  return useContext(CapacityContext);
-};
+  async save() {
+    await setDoc(this.capacityRef, this.toMap());
+  }
+}
 
-export const CapacityProvider = ({ children }) => {
-  const [capacity, setCapacity] = useState(null);
-  const [capacityRef, setCapacityRef] = useState(null);
-
-  const loadCapacity = async (capacityId) => {
-    try {
-      const capacityDoc = await getDoc(doc(adb, 'capacities', capacityId));
-      if (capacityDoc.exists()) {
-        setCapacity(capacityDoc.data());
-        setCapacityRef(capacityDoc.ref);
-      } else {
-        console.log('No such document!');
-      }
-    } catch (error) {
-      console.error('Error loading capacity:', error);
-    }
-  };
-
-  const saveCapacity = async () => {
-    try {
-      await setDoc(capacityRef, capacity);
-    } catch (error) {
-      console.error('Error saving capacity:', error);
-    }
-  };
-
-  const value = {
-    capacity,
-    capacityRef,
-    loadCapacity,
-    saveCapacity,
-  };
-
-  return (
-    <CapacityContext.Provider value={value}>
-      {children}
-    </CapacityContext.Provider>
-  );
-};
+export default Capacity;

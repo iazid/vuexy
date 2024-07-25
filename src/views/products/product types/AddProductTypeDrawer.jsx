@@ -1,10 +1,8 @@
-// src/components/AddProductTypeDrawer.js
-
 import React from 'react';
 import { Button, Drawer, IconButton, Typography, Divider, FormControlLabel, Radio, RadioGroup } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import CustomTextField from '@core/components/mui/TextField';
-import FirebaseService from '../../../app/firebase/FirebaseService';
+import FirebaseService from '../../../app/firebase/firebaseService';
 import { useDispatch } from 'react-redux';
 import { fetchProductTypes } from '../../../redux-store/slices/productType';
 import { CATEGORY, PRODUCT_TYPE } from '../../../utils/ProductType';
@@ -60,7 +58,7 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
       variant='temporary'
       onClose={handleReset}
       ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}
+      sx={{ '& .MuiDrawer-paper': { width: { xs: 400, sm: 500 } } }}
     >
       <div className='flex items-center justify-between plb-5 pli-6'>
         <Typography variant='h5'>Ajouter un nouveau type de produit</Typography>
@@ -107,12 +105,13 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
             render={({ field }) => (
               <RadioGroup
                 {...field}
+                value={field.value} // Ajout de la valeur contrôlée
                 onChange={(e) => field.onChange(Number(e.target.value))}
               >
                 {Object.values(PRODUCT_TYPE).map((value, index) => (
                   <FormControlLabel
                     key={value}
-                    value={index}
+                    value={value} // Assurez-vous que la valeur correspond à PRODUCT_TYPE
                     control={<Radio />}
                     label={productTypeOptions[index]}
                   />

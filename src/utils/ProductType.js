@@ -7,7 +7,8 @@ const PRODUCT_TYPE = {
     LOCKER: 0,
     BOOK_REGULAR: 1,
     BOOK_TABLE: 2,
-    CONSUMABLE: 3
+    CONSUMABLE: 3,
+    STUFF: 4 // Ajout de "Stuff" ou "Matériel"
   };
   
   /**
@@ -19,7 +20,7 @@ const PRODUCT_TYPE = {
     FOOD: 2,
     GOODIES: 3,
     STUFF: 4,
-    NONE: 5
+    NONE: 5 
   };
   
   /**

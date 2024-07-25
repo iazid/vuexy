@@ -1,13 +1,9 @@
-'use client'
-
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid, Avatar, CircularProgress } from '@mui/material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, doc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
-import { fetchProductTypes } from '../../../redux-store/slices/productType';
 import Product from '../../../utils/Product';
 import Capacity from '../../../utils/Capacity';
 
@@ -18,11 +14,8 @@ const initialData = {
   capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'CL' }]
 };
 
-const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
-  const dispatch = useDispatch();
-  const { productTypes, status: productTypeStatus, error: productTypeError } = useSelector(state => state.productTypes);
-
-  const { control, reset, handleSubmit, formState: { errors }, setValue } = useForm({
+const AddProductDrawer = ({ open, handleClose, productData, setData, productTypes }) => {
+  const { control, reset, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     defaultValues: initialData
   });
 
@@ -35,11 +28,8 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (productTypeStatus === 'idle') {
-      dispatch(fetchProductTypes());
-    }
-  }, [productTypeStatus, dispatch]);
+  // Filtrer les types de produits pour ne conserver que le premier type
+  const filteredProductTypes = productTypes.slice(0, 1);
 
   useEffect(() => {
     reset(initialData); // Réinitialiser les valeurs par défaut à l'ouverture du drawer
@@ -62,7 +52,7 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
     setLoading(true);
 
     try {
-      const selectedType = productTypes.find(type => type.id === data.type);
+      const selectedType = productTypes.find(type => type.name === data.type);
       if (!selectedType) {
         throw new Error('Type de produit non valide.');
       }
@@ -74,7 +64,7 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
 
       const newProduct = new Product({
         productRef: newProductRef,
-        productType: doc(adb, `productTypes/${selectedType.id}`),
+        productTypeRef: doc(adb, `productTypes/${selectedType.id}`), // Correctly set productTypeRef
         pic: imageURL,
         name: data.name,
         date: new Date(),
@@ -87,8 +77,8 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
         const capRef = doc(collection(adb, 'capacities'));
         const newCapacity = new Capacity({
           capacityRef: capRef,
-          productTypeRef: newProduct.productType,
-          productRef: newProductRef,
+          productTypeRef: newProduct.productTypeRef, // Correctly pass productTypeRef
+          productRef: newProductRef, // Référence au nouveau produit
           capacity: parseInt(cap.capacity, 10),
           unity: cap.unit,
           price: parseFloat(cap.price),
@@ -118,6 +108,15 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
     reset(initialData);
     setImage(null);
     setImagePreview(null);
+  };
+
+  const handleTestClick = () => {
+    if (filteredProductTypes.length > 0) {
+      const firstTypeId = filteredProductTypes[0].id;
+      alert(`ID du premier type de produit: ${firstTypeId}`);
+    } else {
+      alert('Aucun type de produit disponible.');
+    }
   };
 
   return (
@@ -202,8 +201,8 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
                 }}
                 label="Type de produit"
               >
-                {productTypes.map((productType) => (
-                  <MenuItem key={productType.id} value={productType.id}>
+                {filteredProductTypes.map((productType) => (
+                  <MenuItem key={productType.id} value={productType.name}>
                     {productType.name}
                   </MenuItem>
                 ))}
@@ -292,10 +291,13 @@ const AddProductDrawer = ({ open, handleClose, productData, setData }) => {
           <Button onClick={() => append({ price: 0, quantity: 0, capacity: 0, unit: 'CL' })}>
             Ajouter une contenance
           </Button>
+          <Button onClick={handleTestClick}>
+            Test
+          </Button>
         </Box>
         <Box display="flex" justifyContent="space-between">
           <Button variant='contained' type='submit' disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : 'Terminer'}
+            {loading ? <CircrProgress size={24} /> : 'Terminer'}
           </Button>
           <Button variant='tonal' color='error' type='reset' onClick={handleReset}>
             Annuler
