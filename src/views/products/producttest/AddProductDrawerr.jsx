@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid, Avatar, CircularProgress } from '@mui/material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
-import Product from '../../../utils/Product';
 import Capacity from '../../../utils/Capacity';
 
 const initialData = {
   name: '',
   description: '',
   type: '',
-  capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'CL' }]
+  capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'centilitre' }]
 };
 
-const AddProductDrawer = ({ open, handleClose, productData, setData, productTypes }) => {
-  const { control, reset, handleSubmit, formState: { errors }, setValue, watch } = useForm({
+const AddProductDrawer = ({ open, handleClose, productData, setData, productTypes, setFilteredProducts, currentFilters }) => {
+  const { control, reset, handleSubmit, formState: { errors }, setValue } = useForm({
     defaultValues: initialData
   });
 
@@ -27,9 +28,6 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Filtrer les types de produits pour ne conserver que le premier type
-  const filteredProductTypes = productTypes.slice(0, 1);
 
   useEffect(() => {
     reset(initialData); // Réinitialiser les valeurs par défaut à l'ouverture du drawer
@@ -57,40 +55,67 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
         throw new Error('Type de produit non valide.');
       }
 
+      // Créez d'abord un produit vide pour obtenir son ID
       const newProductRef = doc(collection(adb, 'products'));
-      const productImageRef = ref(storagedb, `products/${newProductRef.id}/pic`);
+      await setDoc(newProductRef, {});
+
+      // Uploadez l'image en utilisant l'ID du produit
+      const productImagePath = `products/${newProductRef.id}/pic`;
+      const productImageRef = ref(storagedb, productImagePath);
       await uploadBytes(productImageRef, image);
       const imageURL = await getDownloadURL(productImageRef);
 
-      const newProduct = new Product({
-        productRef: newProductRef,
-        productTypeRef: doc(adb, `productTypes/${selectedType.id}`), // Correctly set productTypeRef
-        pic: imageURL,
+      const formattedDate = format(new Date(), "dd MMMM yyyy 'à' HH:mm:ss 'UTC+1'", { locale: fr });
+
+      const newProduct = {
         name: data.name,
-        date: new Date(),
         description: data.description,
-        capacities: [],
+        pic: productImagePath, // Chemin de l'image
+        productType: doc(adb, `productTypes/${selectedType.id}`),
+        date: formattedDate,
         visible: true,
-      });
+        type: selectedType.name,
+        numberOfCapacities: data.capacities.length // Ajoutez ce champ pour le tableau
+      };
 
       const capacitiesRefs = await Promise.all(data.capacities.map(async (cap) => {
         const capRef = doc(collection(adb, 'capacities'));
         const newCapacity = new Capacity({
           capacityRef: capRef,
-          productTypeRef: newProduct.productTypeRef, // Correctly pass productTypeRef
-          productRef: newProductRef, // Référence au nouveau produit
+          productTypeRef: newProduct.productType,
+          productRef: newProductRef,
           capacity: parseInt(cap.capacity, 10),
           unity: cap.unit,
           price: parseFloat(cap.price),
           quantity: parseInt(cap.quantity, 10)
         });
         await newCapacity.save();
-        newProduct.addCapacity(capRef);
         return capRef;
       }));
 
-      await newProduct.save();
-      setData([...productData, newProduct]);
+      newProduct.capacities = capacitiesRefs.map(ref => ref.path);
+
+      // Mettez à jour le produit avec les informations complètes
+      await setDoc(newProductRef, newProduct);
+
+      // Ajoutez la référence du produit au type de produit correspondant
+      const productTypeRef = doc(adb, `productTypes/${selectedType.id}`);
+      await updateDoc(productTypeRef, {
+        products: arrayUnion(newProductRef)
+      });
+
+      // Mettez à jour les états locaux
+      const updatedProducts = [...productData, { ...newProduct, id: newProductRef.id }];
+      setData(updatedProducts);
+
+      // Réappliquez les filtres actuels
+      let filteredData = updatedProducts;
+      if (currentFilters.selectedType) {
+        filteredData = filteredData.filter(product => product.type === currentFilters.selectedType);
+      }
+
+      setFilteredProducts(filteredData);
+
       handleClose();
       reset(initialData);
       setImage(null);
@@ -108,15 +133,6 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
     reset(initialData);
     setImage(null);
     setImagePreview(null);
-  };
-
-  const handleTestClick = () => {
-    if (filteredProductTypes.length > 0) {
-      const firstTypeId = filteredProductTypes[0].id;
-      alert(`ID du premier type de produit: ${firstTypeId}`);
-    } else {
-      alert('Aucun type de produit disponible.');
-    }
   };
 
   return (
@@ -201,7 +217,7 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
                 }}
                 label="Type de produit"
               >
-                {filteredProductTypes.map((productType) => (
+                {productTypes.map((productType) => (
                   <MenuItem key={productType.id} value={productType.name}>
                     {productType.name}
                   </MenuItem>
@@ -288,16 +304,13 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
               </Grid>
             </Grid>
           ))}
-          <Button onClick={() => append({ price: 0, quantity: 0, capacity: 0, unit: 'CL' })}>
+          <Button onClick={() => append({ price: 0, quantity: 0, capacity: 0, unit: 'centilitre' })}>
             Ajouter une contenance
-          </Button>
-          <Button onClick={handleTestClick}>
-            Test
           </Button>
         </Box>
         <Box display="flex" justifyContent="space-between">
           <Button variant='contained' type='submit' disabled={loading}>
-            {loading ? <CircrProgress size={24} /> : 'Terminer'}
+            {loading ? <CircularProgress size={24} /> : 'Terminer'}
           </Button>
           <Button variant='tonal' color='error' type='reset' onClick={handleReset}>
             Annuler

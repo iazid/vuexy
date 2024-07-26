@@ -27,6 +27,7 @@
     "@tanstack/match-sorter-utils": "8.11.8",
     "@tanstack/react-table": "8.13.2",
     "classnames": "2.5.1",
+    "date-fns": "^3.6.0",
     "firebase": "^10.12.2",
     "firebase-hooks": "^0.0.1",
     "next": "14.1.3",
