@@ -1,44 +1,65 @@
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'next/navigation';
-import { fetchProductTypes } from '../../../redux-store/slices/productType';
-import { fetchCapacities } from '../../../redux-store/slices/capacity';
-import ProductListTable from '../../../views/products/product list/ProductListTable';
-import ProductFilters from '../../../views/products/product list/ProductFilters';
-import AddProductDrawer from '../../../views/products/product list/AddProductDrawer';
+import ProductListTable from '../../../views/products/producttest/ProductListTable';
+import ProductFilters from '../../../views/products/producttest/ProductFilters';
+import AddProductDrawer from '../../../views/products/producttest/AddProductDrawerr';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from '../../firebase/firebaseconfigdb';
 import ProductFactory from '../../../utils/ProductFactory';
 
 const ProductsPage = () => {
-  const dispatch = useDispatch();
   const searchParams = useSearchParams();
   const initialType = searchParams.get('type') || '';
 
-  const { productTypes, status: productTypeStatus, error: productTypeError } = useSelector(state => state.productTypes);
-  const { capacities, status: capacityStatus, error: capacityError } = useSelector(state => state.capacities);
+  const [productTypes, setProductTypes] = useState([]);
+  const [capacities, setCapacities] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentFilters, setCurrentFilters] = useState({ selectedType: initialType });
 
   useEffect(() => {
-    if (productTypeStatus === 'idle') {
-      dispatch(fetchProductTypes());
-    }
-    if (capacityStatus === 'idle') {
-      dispatch(fetchCapacities());
-    }
-  }, [productTypeStatus, capacityStatus, dispatch]);
+    const fetchProductTypes = async () => {
+      try {
+        const productTypesSnapshot = await getDocs(collection(adb, 'productTypes'));
+        const productTypesData = productTypesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setProductTypes(productTypesData);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+
+    const fetchCapacities = async () => {
+      try {
+        const capacitiesSnapshot = await getDocs(collection(adb, 'capacities'));
+        const capacitiesData = capacitiesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCapacities(capacitiesData);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+
+    fetchProductTypes();
+    fetchCapacities();
+  }, []);
 
   useEffect(() => {
     const fetchProducts = async () => {
       const allProductsPromises = productTypes.flatMap(type =>
-        type.products.map(async productRef => {
+        type.products?.map(async productRef => {
           const productDoc = await getDoc(doc(adb, productRef.path));
           if (productDoc.exists()) {
             let product = ProductFactory(productDoc);
@@ -56,12 +77,13 @@ const ProductsPage = () => {
             return product;
           }
           return null;
-        })
+        }) || []
       );
 
       const allProducts = (await Promise.all(allProductsPromises)).filter(product => product !== null);
       setProducts(allProducts);
       setFilteredProducts(allProducts);
+      setLoading(false);
     };
 
     if (productTypes.length > 0) {
@@ -70,12 +92,16 @@ const ProductsPage = () => {
   }, [productTypes]);
 
   useEffect(() => {
-    if (!initialType) {
-      setFilteredProducts(products);
-    }
-  }, [initialType, products]);
+    let filteredData = [...products];
 
-  if (productTypeStatus === 'loading' || capacityStatus === 'loading') {
+    if (currentFilters.selectedType) {
+      filteredData = filteredData.filter(product => product.type === currentFilters.selectedType);
+    }
+
+    setFilteredProducts(filteredData);
+  }, [currentFilters, products]);
+
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -83,17 +109,13 @@ const ProductsPage = () => {
     );
   }
 
-  if (productTypeStatus === 'failed') {
-    return <div>Error: {productTypeError}</div>;
-  }
-
-  if (capacityStatus === 'failed') {
-    return <div>Error: {capacityError}</div>;
+  if (error) {
+    return <div>Error: {error}</div>;
   }
 
   return (
     <div>
-      <ProductFilters setData={setFilteredProducts} productData={products} productTypes={productTypes} initialType={initialType} />
+      <ProductFilters setData={setFilteredProducts} productData={products} productTypes={productTypes} initialType={initialType} setCurrentFilters={setCurrentFilters} />
       <br />
       <ProductListTable productData={filteredProducts} setAddProductOpen={setAddProductOpen} />
       <AddProductDrawer
@@ -102,6 +124,8 @@ const ProductsPage = () => {
         productData={products}
         setData={setProducts}
         productTypes={productTypes}
+        setFilteredProducts={setFilteredProducts}
+        currentFilters={currentFilters}
       />
     </div>
   );
