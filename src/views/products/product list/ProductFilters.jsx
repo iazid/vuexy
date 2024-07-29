@@ -6,6 +6,10 @@ const ProductFilters = ({ setData, productData, productTypes, initialType, setCu
   const [selectedType, setSelectedType] = useState(initialType);
 
   useEffect(() => {
+    setSelectedType(initialType);
+  }, [initialType]);
+
+  useEffect(() => {
     let filteredData = [...productData];
 
     if (selectedType) {
@@ -15,10 +19,6 @@ const ProductFilters = ({ setData, productData, productTypes, initialType, setCu
     setData(filteredData);
     setCurrentFilters({ selectedType });
   }, [selectedType, productData, setData, setCurrentFilters]);
-
-  useEffect(() => {
-    setSelectedType(initialType);
-  }, [initialType]);
 
   return (
     <Card>

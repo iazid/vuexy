@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Typography, Card, CardHeader, Button, MenuItem } from '@mui/material';
 import CustomAvatar from '@core/components/mui/Avatar';
@@ -18,7 +16,6 @@ import CustomTextField from '@core/components/mui/TextField';
 import TablePagination from '@mui/material/TablePagination';
 import TablePaginationComponent from '@components/TablePaginationComponent';
 
-// Définir le composant DebouncedInput pour la barre de recherche
 const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
   const [value, setValue] = useState(initialValue);
 
@@ -141,7 +138,7 @@ const ProductListTable = ({ productData, setAddProductOpen }) => {
       </div>
       <TablePagination
         component="div"
-        count={tableInstance.getRowModel().rows.length}
+        count={tableInstance.getFilteredRowModel().rows.length}
         onPageChange={(event, newPage) => tableInstance.setPageIndex(newPage)}
         onRowsPerPageChange={event => tableInstance.setPageSize(Number(event.target.value))}
         page={tableInstance.getState().pagination.pageIndex}

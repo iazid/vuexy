@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid, Avatar, CircularProgress } from '@mui/material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { collection, doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
 import Capacity from '../../../utils/Capacity';
+import Product from '../../../utils/Product';
 
 const initialData = {
   name: '',
@@ -15,7 +14,7 @@ const initialData = {
   capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'centilitre' }]
 };
 
-const AddProductDrawer = ({ open, handleClose, productData, setData, productTypes, setFilteredProducts, currentFilters }) => {
+const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFilteredProducts, currentFilters, onProductAdded }) => {
   const { control, reset, handleSubmit, formState: { errors }, setValue } = useForm({
     defaultValues: initialData
   });
@@ -30,7 +29,7 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    reset(initialData); // Réinitialiser les valeurs par défaut à l'ouverture du drawer
+    reset(initialData);
   }, [open, reset]);
 
   const handleImageChange = (e) => {
@@ -39,6 +38,13 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
       setImage(file);
       setImagePreview(URL.createObjectURL(file));
     }
+  };
+
+  const convertUnitToCentilitres = (capacity, unit) => {
+    if (unit === 'L') {
+      return capacity * 100; 
+    }
+    return capacity; 
   };
 
   const onSubmit = async (data) => {
@@ -55,66 +61,56 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
         throw new Error('Type de produit non valide.');
       }
 
-      // Créez d'abord un produit vide pour obtenir son ID
       const newProductRef = doc(collection(adb, 'products'));
-      await setDoc(newProductRef, {});
+      const newProduct = new Product({
+        productRef: newProductRef,
+        name: data.name,
+        description: data.description,
+        pic: '', 
+        productType: doc(adb, `productTypes/${selectedType.id}`),
+        date: new Date(),
+        visible: true,
+        capacities: []
+      });
 
-      // Uploadez l'image en utilisant l'ID du produit
+      await setDoc(newProductRef, newProduct.toMap());
+
       const productImagePath = `products/${newProductRef.id}/pic`;
       const productImageRef = ref(storagedb, productImagePath);
       await uploadBytes(productImageRef, image);
-      const imageURL = await getDownloadURL(productImageRef);
-
-      const formattedDate = format(new Date(), "dd MMMM yyyy 'à' HH:mm:ss 'UTC+1'", { locale: fr });
-
-      const newProduct = {
-        name: data.name,
-        description: data.description,
-        pic: productImagePath, // Chemin de l'image
-        productType: doc(adb, `productTypes/${selectedType.id}`),
-        date: formattedDate,
-        visible: true,
-        type: selectedType.name,
-        numberOfCapacities: data.capacities.length // Ajoutez ce champ pour le tableau
-      };
+      newProduct.pic = productImagePath;
 
       const capacitiesRefs = await Promise.all(data.capacities.map(async (cap) => {
+        const convertedCapacity = convertUnitToCentilitres(cap.capacity, cap.unit);
         const capRef = doc(collection(adb, 'capacities'));
         const newCapacity = new Capacity({
           capacityRef: capRef,
           productTypeRef: newProduct.productType,
           productRef: newProductRef,
-          capacity: parseInt(cap.capacity, 10),
-          unity: cap.unit,
+          capacity: convertedCapacity,
+          unity: 'centilitre',
           price: parseFloat(cap.price),
           quantity: parseInt(cap.quantity, 10)
         });
         await newCapacity.save();
+        newProduct.addCapacity(newCapacity);
         return capRef;
       }));
 
-      newProduct.capacities = capacitiesRefs.map(ref => ref.path);
+      await newProduct.save();
 
-      // Mettez à jour le produit avec les informations complètes
-      await setDoc(newProductRef, newProduct);
-
-      // Ajoutez la référence du produit au type de produit correspondant
       const productTypeRef = doc(adb, `productTypes/${selectedType.id}`);
       await updateDoc(productTypeRef, {
         products: arrayUnion(newProductRef)
       });
 
-      // Mettez à jour les états locaux
-      const updatedProducts = [...productData, { ...newProduct, id: newProductRef.id }];
-      setData(updatedProducts);
-
-      // Réappliquez les filtres actuels
-      let filteredData = updatedProducts;
-      if (currentFilters.selectedType) {
-        filteredData = filteredData.filter(product => product.type === currentFilters.selectedType);
-      }
-
-      setFilteredProducts(filteredData);
+      const newProductData = {
+        ...newProduct.toMap(),
+        id: newProductRef.id,
+        type: selectedType.name,
+        numberOfCapacities: capacitiesRefs.length,
+      };
+      onProductAdded(newProductData);
 
       handleClose();
       reset(initialData);
@@ -290,8 +286,8 @@ const AddProductDrawer = ({ open, handleClose, productData, setData, productType
                     <FormControl fullWidth variant='standard'>
                       <InputLabel shrink={false}></InputLabel>
                       <Select {...field} disableUnderline>
-                        <MenuItem value="CL">CL</MenuItem>
-                        <MenuItem value="L">L</MenuItem>
+                        <MenuItem value="centilitre">Centilitre</MenuItem>
+                        <MenuItem value="L">Litre</MenuItem>
                       </Select>
                     </FormControl>
                   )}

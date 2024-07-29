@@ -1,4 +1,3 @@
-// src/models/ProductType.js
 
 /**
  * @enum {number}

@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import ProductListTable from '../../../views/products/producttest/ProductListTable';
-import ProductFilters from '../../../views/products/producttest/ProductFilters';
-import AddProductDrawer from '../../../views/products/producttest/AddProductDrawerr';
+import ProductListTable from '../../../views/products/product list/ProductListTable';
+import ProductFilters from '../../../views/products/product list/ProductFilters';
+import AddProductDrawer from '../../../views/products/product list/AddProductDrawerr';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -101,6 +101,18 @@ const ProductsPage = () => {
     setFilteredProducts(filteredData);
   }, [currentFilters, products]);
 
+  const handleProductAdded = (newProductData) => {
+    const updatedProducts = [...products, newProductData];
+    setProducts(updatedProducts);
+
+    let filteredData = updatedProducts;
+    if (currentFilters.selectedType) {
+      filteredData = filteredData.filter(product => product.type === currentFilters.selectedType);
+    }
+
+    setFilteredProducts(filteredData);
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -121,11 +133,10 @@ const ProductsPage = () => {
       <AddProductDrawer
         open={addProductOpen}
         handleClose={() => setAddProductOpen(false)}
-        productData={products}
-        setData={setProducts}
         productTypes={productTypes}
         setFilteredProducts={setFilteredProducts}
         currentFilters={currentFilters}
+        onProductAdded={handleProductAdded}
       />
     </div>
   );
