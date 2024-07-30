@@ -1,7 +1,7 @@
-// src/services/FirebaseService.js
+// src/app/firebase/FirebaseService.js
 
 import axios from 'axios';
-import { collection, addDoc, doc, setDoc, getDocs, query, where, orderBy, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, setDoc, getDocs, query, where, orderBy, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from './firebaseconfigdb';
 import { PRODUCT_TYPE, CATEGORY } from '../../utils/ProductType';
@@ -33,11 +33,47 @@ class FirebaseService {
 
   static async addEvent(docRef, data) {
     try {
-      await setDoc(doc(docRef), data);
+      await setDoc(docRef, data);
+      return docRef;
     } catch (error) {
-      console.error("Error adding event: ", error);
+      console.error("Erreur lors de l'ajout de l'événement:", error);
+      throw error;
     }
   }
+
+  static async updateEvent(docRef, data) {
+    try {
+      await updateDoc(docRef, data);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'événement:", error);
+      throw error;
+    }
+  }
+
+  static async uploadEventImage(imageData, eventId, fileName) {
+    try {
+      const filePath = `events/${eventId}/${fileName}`;
+      const storageRef = ref(storagedb, filePath);
+      await uploadBytes(storageRef, imageData);
+      return filePath;
+    } catch (error) {
+      console.error("Erreur lors du téléchargement de l'image de l'événement:", error);
+      throw error;
+    }
+  }
+
+  static async getEventImageUrl(filePath) {
+    try {
+      const storageRef = ref(storagedb, filePath);
+      const url = await getDownloadURL(storageRef);
+      return url;
+    } catch (error) {
+      console.error("Erreur lors de l'obtention de l'URL de l'image:", error);
+      throw error;
+    }
+  }
+ 
+  
 
   static async updateCommand({ order, status, token }) {
     const url = `${baseUri}/updateCommand`;
@@ -385,17 +421,6 @@ class FirebaseService {
     }
   }
 
-  static async uploadEventImage(imageData, eventID, fileName) {
-    try {
-      const filePath = `events/${eventID}/${fileName}`;
-      const storageRef = ref(storagedb, filePath);
-      await uploadBytes(storageRef, imageData);
-      return filePath;
-    } catch (error) {
-      console.error("Error uploading event image: ", error);
-      throw error;
-    }
-  }
 
   static async uploadProductImage(imageData, productId, fileName) {
     try {
