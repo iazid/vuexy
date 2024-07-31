@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useParams } from 'next/navigation';
 
 // MUI Imports
-import { Card, Typography, MenuItem, styled, Select, CardHeader } from '@mui/material';
+import { Card, Typography, MenuItem, styled, Select, CardHeader, Button } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
@@ -27,6 +27,8 @@ import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import CustomTextField from '@core/components/mui/TextField';
 import EventFilters from './EventFilters';
+import AddEventDrawer from './AddEventDrawer';
+import EditEventDrawer from './EditEventDrawer';  
 
 // Util Imports
 import { fetchEvents } from '../../redux-store/slices/event';
@@ -59,6 +61,9 @@ const EventListTable = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('passed');
   const { lang: locale } = useParams();
+  const [addEventOpen, setAddEventOpen] = useState(false);  // État pour gérer l'ouverture du tiroir d'ajout
+  const [editEventOpen, setEditEventOpen] = useState(false);  // État pour gérer l'ouverture du tiroir d'édition
+  const [selectedEvent, setSelectedEvent] = useState(null);  // État pour stocker les données de l'événement sélectionné
 
   useEffect(() => {
     if (status === 'idle') {
@@ -133,6 +138,15 @@ const EventListTable = () => {
     setDateFilter(event.target.value);
   };
 
+  const handleEventClick = (event) => {
+    setSelectedEvent(event);
+    setEditEventOpen(true);
+  };
+
+  const handleEventUpdated = (eventId, updatedData) => {
+    setData(prevData => prevData.map(event => event.id === eventId ? { ...event, ...updatedData } : event));
+  };
+
   if (status === 'loading') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -140,6 +154,14 @@ const EventListTable = () => {
       </Box>
     );
   }
+
+  const handleEventAdded = async (eventId) => {
+    const eventDoc = await getDoc(doc(adb, 'events', eventId));
+    const newEvent = EventFactory(eventDoc);
+    const imageRef = ref(storagedb, `events/${eventId}/pic`);
+    newEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
+    setData(prevEvents => [...prevEvents, newEvent]);
+  };
 
   return (
     <div>
@@ -184,6 +206,14 @@ const EventListTable = () => {
             placeholder='Search Event'
             className='is-full sm:is-auto'
           />
+          <Button
+            variant="contained"
+            startIcon={<i className="tabler-plus" />}
+            onClick={() => setAddEventOpen(true)}
+            className="is-full sm:is-auto"
+          >
+            Ajouter un nouvel événement
+          </Button>
         </div>
         <div className='overflow-x-auto'>
           <table className={tableStyles.table}>
@@ -223,7 +253,7 @@ const EventListTable = () => {
             ) : (
               <tbody>
                 {table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
+                  <tr key={row.id} className={classnames({ selected: row.getIsSelected() })} onClick={() => handleEventClick(row.original)}>
                     {row.getVisibleCells().map(cell => (
                       <td key={cell.id} style={{ minWidth: '200px' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -236,6 +266,17 @@ const EventListTable = () => {
           </table>
         </div>
       </Card>
+      <AddEventDrawer
+        open={addEventOpen}
+        handleClose={() => setAddEventOpen(false)}
+        onEventAdded={handleEventAdded}
+      />
+      <EditEventDrawer
+        open={editEventOpen}
+        handleClose={() => setEditEventOpen(false)}
+        eventData={selectedEvent}
+        onEventUpdated={handleEventUpdated}
+      />
     </div>
   );
 };

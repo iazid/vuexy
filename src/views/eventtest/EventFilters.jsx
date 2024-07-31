@@ -34,7 +34,7 @@ const EventFilters = ({ setData, eventData }) => {
             onChange={e => setLocation(e.target.value)}
             SelectProps={{ displayEmpty: true }}
           >
-            <MenuItem value=''>Select Location</MenuItem>
+            <MenuItem value=''>Choisir un emplacement</MenuItem>
             <MenuItem value='paris'>Paris</MenuItem>
           </CustomTextField>
         </Grid>

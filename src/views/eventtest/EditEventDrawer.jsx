@@ -1,24 +1,28 @@
-import React, { useState } from 'react';
-import { Button, Drawer, IconButton, Typography, Divider, Box, InputBase, FormControl, InputLabel, Select, MenuItem, CircularProgress } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Button, Drawer, IconButton, Typography, Divider, InputLabel , Box, CircularProgress, InputBase, Select, MenuItem, FormControl } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { Timestamp, GeoPoint } from 'firebase/firestore';
 import FirebaseService from '../../app/firebase/firebaseService';
-import { collection, doc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { adb } from '../../app/firebase/firebaseconfigdb';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import EventModel from '../../utils/EventModel';
 
-const initialData = new EventModel();
-
-const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
+const EditEventDrawer = ({ open, handleClose, eventData, onEventUpdated }) => {
   const { control, reset, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: initialData
+    defaultValues: eventData
   });
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    reset(eventData);
+    if (eventData && eventData.imageUri) {
+      setImagePreview(eventData.imageUri);
+    }
+  }, [eventData, reset]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -36,39 +40,41 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const dateTimeString = `${data.date.toISOString().split('T')[0]}T${data.time}:00`;
+      const dateTimeString = `${data.date}T${data.time}:00`;
       const eventTimestamp = Timestamp.fromDate(new Date(dateTimeString));
 
-      const eventDocRef = doc(collection(adb, 'events')); 
-      const newEventRef = await FirebaseService.addEvent(eventDocRef, {
-        ...data,
+      const eventDocRef = doc(adb, 'events', eventData.id);
+      const updatedData = {
+        name: data.name,
         date: eventTimestamp,
         time: eventTimestamp, 
+        address: data.address,
+        description: data.description,
+        place_description: data.place_description,
+        dressed_up: data.dressed_up,
         regular_price: parseFloat(data.regular_price),
         simpEntry: parseFloat(data.simpEntry),
-        visible: true,
-        simpCount: 0,
-        place: new GeoPoint(48.86717729999999, 2.3071846),
-        imageUri: '',
-        croppedUri: '',
-        pic: ''
-      });
+        place: new GeoPoint(48.86717729999999, 2.3071846)
+      };
 
       if (image) {
-        const normalImagePath = await FirebaseService.uploadEventImage(image, newEventRef.id, 'pic');
-        const croppedImagePath = await FirebaseService.uploadEventImage(image, newEventRef.id, 'pic_cropped');
-        await FirebaseService.updateEvent(newEventRef, { imageUri: normalImagePath, croppedUri: croppedImagePath, pic: normalImagePath });
+        const normalImagePath = await FirebaseService.uploadEventImage(image, eventData.id, 'pic');
+        const croppedImagePath = await FirebaseService.uploadEventImage(image, eventData.id, 'pic_cropped');
+        updatedData.imageUri = normalImagePath;
+        updatedData.croppedUri = croppedImagePath;
+        updatedData.pic = normalImagePath;
       }
 
-      onEventAdded(newEventRef.id);
-      toast.success('Événement ajouté avec succès!');
+      await updateDoc(eventDocRef, updatedData);
+      onEventUpdated(eventData.id, updatedData);
+      toast.success('Événement mis à jour avec succès!');
       handleClose();
-      reset(initialData);
+      reset(eventData);
       setImage(null);
       setImagePreview(null);
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de l\'événement:', error);
-      toast.error('Erreur lors de l\'ajout de l\'événement');
+      console.error('Erreur lors de la mise à jour de l\'événement:', error);
+      toast.error('Erreur lors de la mise à jour de l\'événement');
     } finally {
       setLoading(false);
     }
@@ -76,7 +82,7 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
 
   const handleReset = () => {
     handleClose();
-    reset(initialData);
+    reset(eventData);
     setImage(null);
     setImagePreview(null);
   };
@@ -91,7 +97,7 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
       sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}
     >
       <Box className='flex items-center justify-between plb-5 pli-6'>
-        <Typography variant='h5'>Ajouter un nouvel événement</Typography>
+        <Typography variant='h5'>Modifier l'événement</Typography>
         <IconButton onClick={handleReset}>
           <i className='tabler-x text-textPrimary' />
         </IconButton>
@@ -101,11 +107,11 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
         <input
           accept="image/*"
           style={{ display: 'none' }}
-          id="raised-button-file"
+          id="raised-button-file-edit"
           type="file"
           onChange={handleImageChange}
         />
-        <label htmlFor="raised-button-file">
+        <label htmlFor="raised-button-file-edit">
           <Button variant="contained" component="span">
             Sélectionner une image
           </Button>
@@ -269,4 +275,4 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
   );
 };
 
-export default AddEventDrawer;
+export default EditEventDrawer;

@@ -11,8 +11,7 @@ import EventFactory from '../../../utils/EventFactory';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import AddEventDrawer from '../../../views/eventtest/AddEventDrawer';
-import Button from '@mui/material/Button';
-import { ToastContainer, toast } from 'react-toastify';
+import EditEventDrawer from '../../../views/eventtest/EditEventDrawer';
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function EventsPage() {
@@ -20,6 +19,8 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [user, userLoading] = useAuthState(auth);
   const [addEventOpen, setAddEventOpen] = useState(false);
+  const [editEventOpen, setEditEventOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -68,6 +69,19 @@ export default function EventsPage() {
     setEvents(prevEvents => [...prevEvents, newEvent]);
   };
 
+  const handleEventClick = (event) => {
+    setSelectedEvent(event);
+    setEditEventOpen(true);
+  };
+
+  const handleEventUpdated = async (eventId, updatedData) => {
+    const eventDoc = await getDoc(doc(adb, 'events', eventId));
+    const updatedEvent = EventFactory(eventDoc);
+    const imageRef = ref(storagedb, `events/${eventId}/pic`);
+    updatedEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
+    setEvents(prevEvents => prevEvents.map(event => event.id === eventId ? updatedEvent : event));
+  };
+
   if (userLoading || loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -78,12 +92,24 @@ export default function EventsPage() {
 
   return (
     <div>
-      <Button variant="contained" onClick={() => setAddEventOpen(true)}>
-        Ajouter un nouvel événement
-      </Button>
-      <EventList userData={events} />
-      <AddEventDrawer open={addEventOpen} handleClose={() => setAddEventOpen(false)} onEventAdded={handleEventAdded} />
-      <ToastContainer />
+      <EventList 
+        userData={events} 
+        onEventClick={handleEventClick} 
+        onAddEvent={() => setAddEventOpen(true)} 
+      />
+      <AddEventDrawer 
+        open={addEventOpen} 
+        handleClose={() => setAddEventOpen(false)} 
+        onEventAdded={handleEventAdded} 
+      />
+      {selectedEvent && (
+        <EditEventDrawer 
+          open={editEventOpen} 
+          handleClose={() => setEditEventOpen(false)} 
+          eventData={selectedEvent} 
+          onEventUpdated={handleEventUpdated} 
+        />
+      )}
     </div>
   );
 }
