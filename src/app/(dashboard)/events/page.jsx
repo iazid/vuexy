@@ -47,7 +47,7 @@ export default function EventsPage() {
       }));
 
       const filteredEvents = eventsList.filter(event => event);
-      console.log("Events fetched:", filteredEvents); // Log fetched events
+      console.log("Events fetched:", filteredEvents);
       setEvents(filteredEvents);
       setLoading(false);
     };

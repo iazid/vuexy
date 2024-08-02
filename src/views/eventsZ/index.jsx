@@ -2,7 +2,7 @@
 import Grid from '@mui/material/Grid'
 
 // Component Imports
-import UserListTable from './ProductListTable'
+import UserListTable from './EventListTable'
 
 
 const UserList = ({ userData }) => {

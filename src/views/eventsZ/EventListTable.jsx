@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -123,8 +121,8 @@ const EventListTable = () => {
           <Typography 
             variant="body1" 
             onClick={() => {
-              setSelectedEvent(row.original); // Set the selected event
-              setEditEventOpen(true); // Open the edit drawer
+              setSelectedEvent(row.original);
+              setEditEventOpen(true);
             }}
             style={{ cursor: 'pointer' }}
           >
@@ -214,9 +212,9 @@ const EventListTable = () => {
               fontWeight: 'bold'
             }}
           >
-            <MenuItem value='upcoming'>Evenements futurs</MenuItem>
-            <MenuItem value='today'>Evenements d'aujourd'hui</MenuItem>
-            <MenuItem value='passed'>Evenements passés</MenuItem>
+            <MenuItem value='upcoming'>Upcoming Events</MenuItem>
+            <MenuItem value='today'>Today's Events</MenuItem>
+            <MenuItem value='passed'>Past Events</MenuItem>
           </Select>
         </div>
         <Button
@@ -230,7 +228,7 @@ const EventListTable = () => {
       </div>
       <br/>
       <Card>
-        <CardHeader title='Filtres' className='pbe-4' />
+        <CardHeader title='Filters' className='pbe-4' />
         <EventFilters setData={setFilteredEvents} eventData={events} />
       </Card>
       <br/>
@@ -239,7 +237,7 @@ const EventListTable = () => {
           <DebouncedInput
             value={globalFilter ?? ''}
             onChange={value => setGlobalFilter(String(value))}
-            placeholder='Rechercher un évènement'
+            placeholder='Search Event'
             className='is-full sm:is-auto'
           />
         </div>
@@ -305,11 +303,9 @@ const EventListTable = () => {
         eventId={selectedEvent?.id}
         eventImage={selectedEvent?.avatar}  // Pass the image URL
         onEventUpdated={handleEventUpdated}
-        selectedEvent={selectedEvent} // Pass the selected event details
       />
     </div>
   );
-
 };
 
 export default EventListTable;

@@ -73,6 +73,7 @@ const VerticalMenu = ({ scrollMenu }) => {
           <MenuItem href='/productTypes' >Catégories de Produits</MenuItem>
           <MenuItem href='/products'>Liste de Produits</MenuItem>
           <MenuItem href='/eventtest'>Liste test event</MenuItem>
+          {/*<MenuItem href='/eventsZ'>EventsZ</MenuItem>*/}
           
         </SubMenu>
       </Menu>

@@ -37,7 +37,7 @@ const EventFilters = ({ setData, eventData }) => {
             onChange={e => setEventType(e.target.value)}
             SelectProps={{ displayEmpty: true }}
           >
-            <MenuItem value=''>Select Event Type</MenuItem>
+            <MenuItem value=''>Sélectionnez le type d'événement</MenuItem>
             <MenuItem value='mondaine'>Mondaine</MenuItem>
             <MenuItem value='club'>Club</MenuItem>
             <MenuItem value='privée'>Privée</MenuItem>
@@ -46,16 +46,12 @@ const EventFilters = ({ setData, eventData }) => {
         </Grid>
         <Grid item xs={12} sm={6}>
           <CustomTextField
-            select
             fullWidth
             id='select-location'
             value={location}
             onChange={e => setLocation(e.target.value)}
-            SelectProps={{ displayEmpty: true }}
-          >
-            <MenuItem value=''>Select Location</MenuItem>
-            <MenuItem value='paris'>Paris</MenuItem>
-          </CustomTextField>
+            placeholder='Entrez la location'
+          />
         </Grid>
       </Grid>
     </CardContent>

@@ -47,7 +47,7 @@ const ProductTypeListTable = ({ productTypes, setAddProductTypeOpen }) => {
         <Typography
           variant="body1"
           onClick={() => router.push(`/products?type=${info.row.original.name}`)}
-          style={{ cursor: 'pointer', color: 'blue' }}
+          style={{ cursor: 'pointer' }}
         >
           {info.row.original.name}
         </Typography>

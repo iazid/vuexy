@@ -1,17 +1,10 @@
-'use client'
-
-// Importations React
-import { useEffect, useState, useMemo } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { useParams } from 'next/navigation';
-
-// MUI Imports
+import React, { useEffect, useState, useMemo } from 'react';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage';
 import { Card, Typography, MenuItem, styled, Select, CardHeader, Button } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
-
-// Third-party Imports
 import classnames from 'classnames';
 import {
   createColumnHelper,
@@ -21,17 +14,14 @@ import {
   getFilteredRowModel,
   getSortedRowModel
 } from '@tanstack/react-table';
-
-// Component Imports
 import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import CustomTextField from '@core/components/mui/TextField';
 import EventFilters from './EventFilters';
 import AddEventDrawer from './AddEventDrawer';
-import EditEventDrawer from './EditEventDrawer';  
-
-// Util Imports
-import { fetchEvents } from '../../redux-store/slices/event';
+import EditEventDrawer from './EditEventDrawer';
+import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
+import EventFactory from '../../utils/EventFactory';
 
 const Icon = styled('i')({});
 
@@ -54,30 +44,52 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
 };
 
 const EventListTable = () => {
-  const dispatch = useDispatch();
-  const events = useSelector((state) => state.events.filteredEvents);
-  const status = useSelector((state) => state.events.status);
-  const [data, setData] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('passed');
-  const { lang: locale } = useParams();
-  const [addEventOpen, setAddEventOpen] = useState(false);  // État pour gérer l'ouverture du tiroir d'ajout
-  const [editEventOpen, setEditEventOpen] = useState(false);  // État pour gérer l'ouverture du tiroir d'édition
-  const [selectedEvent, setSelectedEvent] = useState(null);  // État pour stocker les données de l'événement sélectionné
+  const [addEventOpen, setAddEventOpen] = useState(false);
+  const [editEventOpen, setEditEventOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchEvents());
-    }
-  }, [status, dispatch]);
+    const fetchEvents = async () => {
+      setStatus('loading');
+      try {
+        const eventsCollectionRef = collection(adb, 'events');
+        const eventData = await getDocs(eventsCollectionRef);
+        const eventsList = await Promise.all(eventData.docs.map(async doc => {
+          try {
+            let event = EventFactory(doc);
+            event.id = doc.id; // Ensure the event has an ID
+            const imageRef = ref(storagedb, `events/${doc.id}/pic`);
+            event.avatar = await getDownloadURL(imageRef).catch(() => `events/${doc.id}/pic`);
+            return event;
+          } catch (error) {
+            console.error("Error fetching event data:", error);
+            return null;
+          }
+        }));
 
-  useEffect(() => {
-    setData(events);
-  }, [events]);
+        const validEvents = eventsList.filter(event => event);
+        setEvents(validEvents);
+        setFilteredEvents(validEvents);
+        setStatus('succeeded');
+      } catch (err) {
+        setError(err.message);
+        setStatus('failed');
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   useEffect(() => {
     const filteredData = events?.filter(event => {
-      const eventDate = new Date(event.date);
+      const eventDate = new Date(event.date.seconds * 1000);
       const today = new Date();
       if (dateFilter === 'passed' && eventDate >= today) return false;
       if (dateFilter === 'today' && (eventDate.getDate() !== today.getDate() || eventDate.getMonth() !== today.getMonth() || eventDate.getFullYear() !== today.getFullYear())) return false;
@@ -86,8 +98,24 @@ const EventListTable = () => {
       return true;
     });
 
-    setData(filteredData);
+    setFilteredEvents(filteredData);
   }, [dateFilter, events]);
+
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      if (selectedEventId) {
+        const eventDoc = await getDoc(doc(adb, 'events', selectedEventId));
+        if (eventDoc.exists()) {
+          const event = EventFactory(eventDoc);
+          const imageRef = ref(storagedb, `events/${selectedEventId}/pic`);
+          event.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEventId}/pic`);
+          setSelectedEvent(event);
+        }
+      }
+    };
+
+    fetchEventDetails();
+  }, [selectedEventId]);
 
   const columnHelper = createColumnHelper();
 
@@ -102,7 +130,17 @@ const EventListTable = () => {
       columnHelper.accessor('name', {
         header: 'Nom',
         cell: ({ row }) => (
-          <Typography variant="body1">{row.original.name || 'Nom non disponible'}</Typography>
+          <Typography 
+            variant="body1" 
+            onClick={() => {
+              console.log("Selected Event ID:", row.original.id); // Log the selected event ID
+              setSelectedEventId(row.original.id); // Set the selected event ID
+              setEditEventOpen(true); // Open the edit drawer
+            }}
+            style={{ cursor: 'pointer' }}
+          >
+            {row.original.name || 'Nom non disponible'}
+          </Typography>
         )
       }),
       columnHelper.accessor('address', {
@@ -114,7 +152,7 @@ const EventListTable = () => {
       columnHelper.accessor('date', {
         header: 'Date',
         cell: ({ row }) => (
-          <Typography variant="body2">{row.original.date !== 'not indicated' ? new Date(row.original.date).toLocaleDateString() : 'Date non disponible'}</Typography>
+          <Typography variant="body2">{row.original.date !== 'not indicated' ? new Date(row.original.date.seconds * 1000).toLocaleDateString() : 'Date non disponible'}</Typography>
         )
       })
     ],
@@ -122,7 +160,7 @@ const EventListTable = () => {
   );
 
   const table = useReactTable({
-    data,
+    data: filteredEvents,
     columns,
     state: {
       globalFilter
@@ -138,13 +176,25 @@ const EventListTable = () => {
     setDateFilter(event.target.value);
   };
 
-  const handleEventClick = (event) => {
-    setSelectedEvent(event);
-    setEditEventOpen(true);
+  const handleEventAdded = async (eventId) => {
+    const eventDoc = await getDoc(doc(adb, 'events', eventId));
+    const newEvent = EventFactory(eventDoc);
+    newEvent.id = eventId; // Ensure the new event has an ID
+    const imageRef = ref(storagedb, `events/${eventId}/pic`);
+    newEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
+    setEvents(prevEvents => [...prevEvents, newEvent]);
+    setFilteredEvents(prevEvents => [...prevEvents, newEvent]);
   };
 
-  const handleEventUpdated = (eventId, updatedData) => {
-    setData(prevData => prevData.map(event => event.id === eventId ? { ...event, ...updatedData } : event));
+  const handleEventUpdated = async () => {
+    if (!selectedEventId) return; // Ensure selectedEventId is defined
+    const eventDoc = await getDoc(doc(adb, 'events', selectedEventId));
+    const updatedEvent = EventFactory(eventDoc);
+    updatedEvent.id = selectedEventId; // Ensure the updated event has an ID
+    const imageRef = ref(storagedb, `events/${selectedEventId}/pic`);
+    updatedEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEventId}/pic`);
+    setEvents(prevEvents => prevEvents.map(event => event.id === selectedEventId ? updatedEvent : event));
+    setFilteredEvents(prevEvents => prevEvents.map(event => event.id === selectedEventId ? updatedEvent : event));
   };
 
   if (status === 'loading') {
@@ -154,14 +204,6 @@ const EventListTable = () => {
       </Box>
     );
   }
-
-  const handleEventAdded = async (eventId) => {
-    const eventDoc = await getDoc(doc(adb, 'events', eventId));
-    const newEvent = EventFactory(eventDoc);
-    const imageRef = ref(storagedb, `events/${eventId}/pic`);
-    newEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
-    setData(prevEvents => [...prevEvents, newEvent]);
-  };
 
   return (
     <div>
@@ -191,11 +233,19 @@ const EventListTable = () => {
             <MenuItem value='passed'>Past Events</MenuItem>
           </Select>
         </div>
+        <Button
+          variant="contained"
+          startIcon={<i className="tabler-plus" />}
+          onClick={() => setAddEventOpen(true)}
+          className="is-full sm:is-auto"
+        >
+          Ajouter un nouvel événement
+        </Button>
       </div>
       <br/>
       <Card>
         <CardHeader title='Filters' className='pbe-4' />
-        <EventFilters setData={setData} eventData={events} />
+        <EventFilters setData={setFilteredEvents} eventData={events} />
       </Card>
       <br/>
       <Card>
@@ -206,14 +256,6 @@ const EventListTable = () => {
             placeholder='Search Event'
             className='is-full sm:is-auto'
           />
-          <Button
-            variant="contained"
-            startIcon={<i className="tabler-plus" />}
-            onClick={() => setAddEventOpen(true)}
-            className="is-full sm:is-auto"
-          >
-            Ajouter un nouvel événement
-          </Button>
         </div>
         <div className='overflow-x-auto'>
           <table className={tableStyles.table}>
@@ -253,7 +295,7 @@ const EventListTable = () => {
             ) : (
               <tbody>
                 {table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className={classnames({ selected: row.getIsSelected() })} onClick={() => handleEventClick(row.original)}>
+                  <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
                     {row.getVisibleCells().map(cell => (
                       <td key={cell.id} style={{ minWidth: '200px' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -274,11 +316,14 @@ const EventListTable = () => {
       <EditEventDrawer
         open={editEventOpen}
         handleClose={() => setEditEventOpen(false)}
-        eventData={selectedEvent}
+        eventId={selectedEventId} // Change to selectedEventId
+        eventImage={selectedEvent?.avatar}  // Pass the image URL
         onEventUpdated={handleEventUpdated}
+        selectedEvent={selectedEvent} // Pass the selected event details
       />
     </div>
   );
+
 };
 
 export default EventListTable;

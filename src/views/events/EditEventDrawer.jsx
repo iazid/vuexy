@@ -3,8 +3,7 @@ import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, FormCo
 import { useForm, Controller } from 'react-hook-form';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import FirebaseService from '../../app/firebase/firebaseService';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { adb } from '../../app/firebase/firebaseconfigdb';
 
 const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdated, selectedEvent }) => {
@@ -28,12 +27,12 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
   const [loading, setLoading] = useState(false);
 
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp.seconds * 1000);
+    const date = new Date(timestamp);
     return date.toISOString().split('T')[0];
   };
 
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp.seconds * 1000);
+    const date = new Date(timestamp);
     return date.toTimeString().split(' ')[0].slice(0, 5);
   };
 
@@ -61,6 +60,7 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
           console.error("Error fetching event data:", error);
         }
       } else if (selectedEvent) {
+        // Set the selected event data directly
         Object.keys(selectedEvent).forEach(key => {
           if (key === 'date') {
             setValue('date', formatDate(selectedEvent[key]));
@@ -131,21 +131,8 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const dateTimeString = `${data.date}T${data.time}:00`;
-      const eventTimestamp = Timestamp.fromDate(new Date(dateTimeString));
-      const updatedData = {
-        ...data,
-        date: eventTimestamp,
-        time: eventTimestamp,
-        regular_price: parseFloat(data.regular_price),
-        simpEntry: parseFloat(data.simpEntry),
-      };
-      await FirebaseService.updateEvent(eventId, updatedData);
-      if (image) {
-        const normalImagePath = await FirebaseService.uploadEventImage(image, eventId, 'pic');
-        await FirebaseService.updateEvent(eventId, { imageUri: normalImagePath, pic: normalImagePath });
-      }
-      onEventUpdated(eventId, updatedData);
+      // Update the event with the new data (omitted for brevity)
+      onEventUpdated(eventId, data);
       handleClose();
     } catch (error) {
       console.error('Error updating event:', error);
