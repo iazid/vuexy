@@ -1,56 +1,132 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, FormControlLabel, CircularProgress, Switch } from '@mui/material';
+import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, CircularProgress, FormControlLabel, Switch } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import EventModel from '../../utils/EventModel';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import FirebaseService from '../../app/firebase/firebaseService';
+import { adb } from '../../app/firebase/firebaseconfigdb';
 
-const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdated }) => {
+const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
   const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
-    defaultValues: new EventModel()
+    defaultValues: {
+      name: '',
+      date: '',
+      time: '',
+      address: '',
+      description: '',
+      place_description: '',
+      dressed_up: false,
+      regular_price: 0,
+      simpEntry: 0,
+    }
   });
 
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(eventImage || null);  // Set initial preview
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp.seconds * 1000);
+    return date.toISOString().split('T')[0];
+  };
+
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp.seconds * 1000);
+    return date.toTimeString().split(' ')[0].slice(0, 5);
+  };
+
+  const fetchEventData = async () => {
     if (eventId) {
-      // Fetch event data and set form values (omitted for brevity)
+      try {
+        const docRef = doc(adb, 'events', eventId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const eventData = docSnap.data();
+          const eventTimestamp = eventData.date || eventData.time;
+          setValue('date', formatDate(eventTimestamp));
+          setValue('time', formatTime(eventTimestamp));
+          setValue('name', eventData.name || '');
+          setValue('address', eventData.address || '');
+          setValue('description', eventData.description || '');
+          setValue('place_description', eventData.place_description || '');
+          setValue('dressed_up', eventData.dressed_up || false);
+          setValue('regular_price', eventData.regular_price || 0);
+          setValue('simpEntry', eventData.simpEntry || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching event data:", error);
+      }
     } else {
-      reset(new EventModel());
-      setImage(null);
-      setImagePreview(null);
+      reset({
+        name: '',
+        date: '',
+        time: '',
+        address: '',
+        description: '',
+        place_description: '',
+        dressed_up: false,
+        regular_price: 0,
+        simpEntry: 0,
+      });
     }
-  }, [eventId, reset]);
+  };
 
   useEffect(() => {
-    if (eventImage) {
-      setImagePreview(eventImage);
+    if (open) {
+      fetchEventData();
     }
-  }, [eventImage]);
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
-      console.log('Selected image file:', file);
-    }
-  };
-
-  const handleImageRemove = () => {
-    setImage(null);
-    setImagePreview(null);
-    console.log('Image removed');
-  };
+  }, [open, eventId]);
 
   const handleReset = () => {
     handleClose();
-    reset(new EventModel());
-    setImage(null);
-    setImagePreview(null);
-    console.log('Form reset');
+    reset({
+      name: '',
+      date: '',
+      time: '',
+      address: '',
+      description: '',
+      place_description: '',
+      dressed_up: false,
+      regular_price: 0,
+      simpEntry: 0,
+    });
+  };
+
+  const onSubmit = async (data) => {
+    setLoading(true);
+    try {
+      const eventDocRef = doc(adb, 'events', eventId);
+      const eventTimestamp = Timestamp.fromDate(new Date(`${data.date}T${data.time}:00`));
+      const updatedEvent = { 
+        name: data.name,
+        date: eventTimestamp,
+        time: eventTimestamp,
+        address: data.address,
+        description: data.description,
+        place_description: data.place_description,
+        dressed_up: data.dressed_up,
+        regular_price: Number(data.regular_price),  
+        simpEntry: Number(data.simpEntry),          
+      };
+
+      await FirebaseService.updateEvent(eventDocRef, updatedEvent);
+
+      onEventUpdated();
+      handleClose();
+      reset({
+        name: '',
+        date: '',
+        time: '',
+        address: '',
+        description: '',
+        place_description: '',
+        dressed_up: false,
+        regular_price: 0,
+        simpEntry: 0,
+      });
+      fetchEventData(); 
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'événement:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,30 +145,7 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
         </IconButton>
       </Box>
       <Divider />
-      <Box component='form' onSubmit={handleSubmit(() => {})} className='flex flex-col gap-6 p-6'>
-        <input
-          accept="image/*"
-          style={{ display: 'none' }}
-          id="raised-button-file-edit"
-          type="file"
-          onChange={handleImageChange}
-        />
-        <label htmlFor="raised-button-file-edit">
-          <Button variant="contained" component="span">
-            Sélectionner une image
-          </Button>
-        </label>
-        {imagePreview && (
-          <Box sx={{ position: 'relative', display: 'inline-block' }}>
-            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '100%', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
-            <IconButton
-              sx={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255, 255, 255, 0.7)' }}
-              onClick={handleImageRemove}
-            >
-              <i className='tabler-trash text-textPrimary' />
-            </IconButton>
-          </Box>
-        )}
+      <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
         <Controller
           name='name'
           control={control}
@@ -192,7 +245,7 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
           control={control}
           render={({ field }) => (
             <FormControlLabel
-              control={<Switch {...field} checked={field.value} />}
+              control={<Switch {...field} checked={!!field.value} />}
               label="Tenue habillée"
             />
           )}
@@ -238,7 +291,6 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
           </Button>
         </Box>
       </Box>
-      <ToastContainer />
     </Drawer>
   );
 };

@@ -62,34 +62,35 @@ const EventListTable = () => {
   const [editEventOpen, setEditEventOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const fetchEvents = async () => {
+    setStatus('loading');
+    try {
+      const eventsCollectionRef = collection(adb, 'events');
+      const eventData = await getDocs(eventsCollectionRef);
+      const eventsList = await Promise.all(eventData.docs.map(async (document) => {
+        try {
+          let event = EventFactory(document);
+          event.id = document.id; // Inclure l'ID de l'événement
+          const imageRef = ref(storagedb, `events/${document.id}/pic`);
+          event.avatar = await getDownloadURL(imageRef).catch(() => `events/${document.id}/pic`);
+          return event;
+        } catch (error) {
+          console.error("Error fetching event data:", error);
+          return null;
+        }
+      }));
+
+      const validEvents = eventsList.filter(event => event);
+      setEvents(validEvents);
+      setFilteredEvents(validEvents);
+      setStatus('succeeded');
+    } catch (err) {
+      setError(err.message);
+      setStatus('failed');
+    }
+  };
+
   useEffect(() => {
-    const fetchEvents = async () => {
-      setStatus('loading');
-      try {
-        const eventsCollectionRef = collection(adb, 'events');
-        const eventData = await getDocs(eventsCollectionRef);
-        const eventsList = await Promise.all(eventData.docs.map(async doc => {
-          try {
-            let event = EventFactory(doc);
-            const imageRef = ref(storagedb, `events/${doc.id}/pic`);
-            event.avatar = await getDownloadURL(imageRef).catch(() => `events/${doc.id}/pic`);
-            return event;
-          } catch (error) {
-            console.error("Error fetching event data:", error);
-            return null;
-          }
-        }));
-
-        const validEvents = eventsList.filter(event => event);
-        setEvents(validEvents);
-        setFilteredEvents(validEvents);
-        setStatus('succeeded');
-      } catch (err) {
-        setError(err.message);
-        setStatus('failed');
-      }
-    };
-
     fetchEvents();
   }, []);
 
@@ -175,12 +176,8 @@ const EventListTable = () => {
   };
 
   const handleEventUpdated = async () => {
-    const eventDoc = await getDoc(doc(adb, 'events', selectedEvent.id));
-    const updatedEvent = EventFactory(eventDoc);
-    const imageRef = ref(storagedb, `events/${selectedEvent.id}/pic`);
-    updatedEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEvent.id}/pic`);
-    setEvents(prevEvents => prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event));
-    setFilteredEvents(prevEvents => prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event));
+    await fetchEvents(); // Fetch all events again
+    setEditEventOpen(false);
   };
 
   if (status === 'loading') {
@@ -303,13 +300,10 @@ const EventListTable = () => {
         open={editEventOpen}
         handleClose={() => setEditEventOpen(false)}
         eventId={selectedEvent?.id}
-        eventImage={selectedEvent?.avatar}  // Pass the image URL
         onEventUpdated={handleEventUpdated}
-        selectedEvent={selectedEvent} // Pass the selected event details
       />
     </div>
   );
-
 };
 
 export default EventListTable;

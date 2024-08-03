@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, FormControlLabel, CircularProgress, Switch } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { Timestamp, doc, GeoPoint, getDoc } from 'firebase/firestore';
 import FirebaseService from '../../app/firebase/firebaseService';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { adb } from '../../app/firebase/firebaseconfigdb';
 
-const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdated, selectedEvent }) => {
+const EditEventDrawer = ({ open, handleClose, eventId, eventIdd, eventImage, onEventUpdated, selectedEvent }) => {
   const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
@@ -28,17 +26,20 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
   const [loading, setLoading] = useState(false);
 
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp.seconds * 1000);
+    const date = new Date(timestamp);
     return date.toISOString().split('T')[0];
   };
 
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp.seconds * 1000);
+    const date = new Date(timestamp);
     return date.toTimeString().split(' ')[0].slice(0, 5);
   };
 
   useEffect(() => {
     const fetchEventData = async () => {
+      if (!eventId) {
+        alert('l id est pas défini')
+      }
       if (eventId) {
         try {
           const docRef = doc(adb, 'events', eventId);
@@ -88,8 +89,10 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
       }
     };
 
-    fetchEventData();
-  }, [eventId, selectedEvent, setValue, reset]);
+    if (open) {
+      fetchEventData();
+    }
+  }, [open, eventId, selectedEvent, setValue, reset]);
 
   useEffect(() => {
     if (eventImage) {
@@ -133,26 +136,49 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
     try {
       const dateTimeString = `${data.date}T${data.time}:00`;
       const eventTimestamp = Timestamp.fromDate(new Date(dateTimeString));
-      const updatedData = {
+
+      const eventDocRef = doc(adb, 'events', eventId); 
+      
+      const updatedEvent = {
         ...data,
         date: eventTimestamp,
         time: eventTimestamp,
         regular_price: parseFloat(data.regular_price),
         simpEntry: parseFloat(data.simpEntry),
+        place: new GeoPoint(48.86717729999999, 2.3071846)
+        
       };
-      await FirebaseService.updateEvent(eventId, updatedData);
+
       if (image) {
         const normalImagePath = await FirebaseService.uploadEventImage(image, eventId, 'pic');
-        await FirebaseService.updateEvent(eventId, { imageUri: normalImagePath, pic: normalImagePath });
+        const croppedImagePath = await FirebaseService.uploadEventImage(image, eventId, 'pic_cropped');
+        updatedEvent.imageUri = normalImagePath;
+        updatedEvent.croppedUri = croppedImagePath;
+        updatedEvent.pic = normalImagePath;
       }
-      onEventUpdated(eventId, updatedData);
+
+      await FirebaseService.updateEvent(eventDocRef, updatedEvent);
+
+      onEventUpdated();
       handleClose();
+      reset();
+      setImage(null);
+      setImagePreview(null);
     } catch (error) {
-      console.error('Error updating event:', error);
+      console.error('Erreur lors de la mise à jour de l\'événement:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleTestButtonClick = async () => {
+       alert(`Nom de l'événement: ${eventIdd}`);
+      
+  };
+
+ 
+    
+  
 
   return (
     <Drawer
@@ -293,7 +319,7 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
           control={control}
           render={({ field }) => (
             <FormControlLabel
-              control={<Switch {...field} checked={!!field.value} />}
+              control={<Switch {...field} checked={field.value} />}
               label="Tenue habillée"
             />
           )}
@@ -338,8 +364,10 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
             Annuler
           </Button>
         </Box>
+        <Button variant='outlined' onClick={handleTestButtonClick}>
+          Afficher le nom de l'événement
+        </Button>
       </Box>
-      <ToastContainer />
     </Drawer>
   );
 };

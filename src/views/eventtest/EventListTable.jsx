@@ -1,10 +1,16 @@
+'use client'
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
+
+// MUI Imports
 import { Card, Typography, MenuItem, styled, Select, CardHeader, Button } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
+
+// Third-party Imports
 import classnames from 'classnames';
 import {
   createColumnHelper,
@@ -14,6 +20,8 @@ import {
   getFilteredRowModel,
   getSortedRowModel
 } from '@tanstack/react-table';
+
+// Component Imports
 import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import CustomTextField from '@core/components/mui/TextField';
@@ -52,7 +60,6 @@ const EventListTable = () => {
   const [dateFilter, setDateFilter] = useState('passed');
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [editEventOpen, setEditEventOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
@@ -64,7 +71,6 @@ const EventListTable = () => {
         const eventsList = await Promise.all(eventData.docs.map(async doc => {
           try {
             let event = EventFactory(doc);
-            event.id = doc.id; // Ensure the event has an ID
             const imageRef = ref(storagedb, `events/${doc.id}/pic`);
             event.avatar = await getDownloadURL(imageRef).catch(() => `events/${doc.id}/pic`);
             return event;
@@ -89,7 +95,7 @@ const EventListTable = () => {
 
   useEffect(() => {
     const filteredData = events?.filter(event => {
-      const eventDate = new Date(event.date.seconds * 1000);
+      const eventDate = new Date(event.date);
       const today = new Date();
       if (dateFilter === 'passed' && eventDate >= today) return false;
       if (dateFilter === 'today' && (eventDate.getDate() !== today.getDate() || eventDate.getMonth() !== today.getMonth() || eventDate.getFullYear() !== today.getFullYear())) return false;
@@ -100,22 +106,6 @@ const EventListTable = () => {
 
     setFilteredEvents(filteredData);
   }, [dateFilter, events]);
-
-  useEffect(() => {
-    const fetchEventDetails = async () => {
-      if (selectedEventId) {
-        const eventDoc = await getDoc(doc(adb, 'events', selectedEventId));
-        if (eventDoc.exists()) {
-          const event = EventFactory(eventDoc);
-          const imageRef = ref(storagedb, `events/${selectedEventId}/pic`);
-          event.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEventId}/pic`);
-          setSelectedEvent(event);
-        }
-      }
-    };
-
-    fetchEventDetails();
-  }, [selectedEventId]);
 
   const columnHelper = createColumnHelper();
 
@@ -133,8 +123,7 @@ const EventListTable = () => {
           <Typography 
             variant="body1" 
             onClick={() => {
-              console.log("Selected Event ID:", row.original.id); // Log the selected event ID
-              setSelectedEventId(row.original.id); // Set the selected event ID
+              setSelectedEvent(row.original); // Set the selected event
               setEditEventOpen(true); // Open the edit drawer
             }}
             style={{ cursor: 'pointer' }}
@@ -152,7 +141,7 @@ const EventListTable = () => {
       columnHelper.accessor('date', {
         header: 'Date',
         cell: ({ row }) => (
-          <Typography variant="body2">{row.original.date !== 'not indicated' ? new Date(row.original.date.seconds * 1000).toLocaleDateString() : 'Date non disponible'}</Typography>
+          <Typography variant="body2">{row.original.date !== 'not indicated' ? new Date(row.original.date).toLocaleDateString() : 'Date non disponible'}</Typography>
         )
       })
     ],
@@ -179,7 +168,6 @@ const EventListTable = () => {
   const handleEventAdded = async (eventId) => {
     const eventDoc = await getDoc(doc(adb, 'events', eventId));
     const newEvent = EventFactory(eventDoc);
-    newEvent.id = eventId; // Ensure the new event has an ID
     const imageRef = ref(storagedb, `events/${eventId}/pic`);
     newEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
     setEvents(prevEvents => [...prevEvents, newEvent]);
@@ -187,14 +175,12 @@ const EventListTable = () => {
   };
 
   const handleEventUpdated = async () => {
-    if (!selectedEventId) return; // Ensure selectedEventId is defined
-    const eventDoc = await getDoc(doc(adb, 'events', selectedEventId));
+    const eventDoc = await getDoc(doc(adb, 'events', selectedEvent.id));
     const updatedEvent = EventFactory(eventDoc);
-    updatedEvent.id = selectedEventId; // Ensure the updated event has an ID
-    const imageRef = ref(storagedb, `events/${selectedEventId}/pic`);
-    updatedEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEventId}/pic`);
-    setEvents(prevEvents => prevEvents.map(event => event.id === selectedEventId ? updatedEvent : event));
-    setFilteredEvents(prevEvents => prevEvents.map(event => event.id === selectedEventId ? updatedEvent : event));
+    const imageRef = ref(storagedb, `events/${selectedEvent.id}/pic`);
+    updatedEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEvent.id}/pic`);
+    setEvents(prevEvents => prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event));
+    setFilteredEvents(prevEvents => prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event));
   };
 
   if (status === 'loading') {
@@ -228,9 +214,9 @@ const EventListTable = () => {
               fontWeight: 'bold'
             }}
           >
-            <MenuItem value='upcoming'>Upcoming Events</MenuItem>
-            <MenuItem value='today'>Today's Events</MenuItem>
-            <MenuItem value='passed'>Past Events</MenuItem>
+            <MenuItem value='upcoming'>Evenements futurs</MenuItem>
+            <MenuItem value='today'>Evenements d'aujourd'hui</MenuItem>
+            <MenuItem value='passed'>Evenements passés</MenuItem>
           </Select>
         </div>
         <Button
@@ -244,7 +230,7 @@ const EventListTable = () => {
       </div>
       <br/>
       <Card>
-        <CardHeader title='Filters' className='pbe-4' />
+        <CardHeader title='Filtres' className='pbe-4' />
         <EventFilters setData={setFilteredEvents} eventData={events} />
       </Card>
       <br/>
@@ -253,7 +239,7 @@ const EventListTable = () => {
           <DebouncedInput
             value={globalFilter ?? ''}
             onChange={value => setGlobalFilter(String(value))}
-            placeholder='Search Event'
+            placeholder='Rechercher un évènement'
             className='is-full sm:is-auto'
           />
         </div>
@@ -316,7 +302,7 @@ const EventListTable = () => {
       <EditEventDrawer
         open={editEventOpen}
         handleClose={() => setEditEventOpen(false)}
-        eventId={selectedEventId} // Change to selectedEventId
+        eventId={selectedEvent?.id}
         eventImage={selectedEvent?.avatar}  // Pass the image URL
         onEventUpdated={handleEventUpdated}
         selectedEvent={selectedEvent} // Pass the selected event details

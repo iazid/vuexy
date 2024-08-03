@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, FormControl, InputLabel, CircularProgress, Switch, FormControlLabel } from '@mui/material';
+import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, CircularProgress, Switch, FormControlLabel } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
+import { format } from 'date-fns';
 import { Timestamp, GeoPoint } from 'firebase/firestore';
 import FirebaseService from '../../app/firebase/firebaseService';
 import { collection, doc } from 'firebase/firestore';
@@ -11,7 +12,11 @@ const initialData = new EventModel();
 
 const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
   const { control, reset, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: initialData
+    defaultValues: {
+      ...initialData,
+      date: format(initialData.date, 'yyyy-MM-dd'),
+      time: format(initialData.date, 'HH:mm')
+    }
   });
 
   const [image, setImage] = useState(null);
@@ -31,41 +36,47 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
     setImagePreview(null);
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     setLoading(true);
     try {
-      const dateTimeString = `${data.date}T${data.time}:00`;
+      const dateTimeString = `${formData.date}T${formData.time}:00`;
       const eventTimestamp = Timestamp.fromDate(new Date(dateTimeString));
 
-      const eventDocRef = doc(collection(adb, 'events')); 
-      const newEventRef = await FirebaseService.addEvent(eventDocRef, {
-        ...data,
+      const newEvent = new EventModel({
+        ...formData,
         date: eventTimestamp,
-        time: eventTimestamp, 
-        regular_price: parseFloat(data.regular_price),
-        simpEntry: parseFloat(data.simpEntry),
-        visible: true,
-        simpCount: 0,
-        place: new GeoPoint(48.86717729999999, 2.3071846),
-        imageUri: '',
-        croppedUri: '',
-        pic: ''
+        regular_price: parseFloat(formData.regular_price),
+        simpEntry: parseFloat(formData.simpEntry),
+        place: new GeoPoint(48.86717729999999, 2.3071846)
       });
 
+      const plainData = newEvent.toPlainObject();
+      const eventDocRef = doc(collection(adb, 'events'));
+      await FirebaseService.addEvent(eventDocRef, plainData);
+
       if (image) {
-        const normalImagePath = await FirebaseService.uploadEventImage(image, newEventRef.id, 'pic');
-        const croppedImagePath = await FirebaseService.uploadEventImage(image, newEventRef.id, 'pic_cropped');
-        await FirebaseService.updateEvent(newEventRef, { imageUri: normalImagePath, croppedUri: croppedImagePath, pic: normalImagePath });
+        const normalImagePath = `events/${eventDocRef.id}/pic`;
+        const croppedImagePath = `events/${eventDocRef.id}/pic_cropped`;
+        await FirebaseService.uploadEventImage(image, eventDocRef.id, 'pic');
+        await FirebaseService.uploadEventImage(image, eventDocRef.id, 'pic_cropped');
+        await FirebaseService.updateEvent(eventDocRef, {
+          imageUri: normalImagePath,
+          croppedUri: croppedImagePath,
+          pic: normalImagePath
+        });
       }
 
-      onEventAdded(newEventRef.id);
+      onEventAdded(eventDocRef.id);
       handleClose();
-      reset(initialData);
+      reset({
+        ...initialData,
+        date: format(initialData.date, 'yyyy-MM-dd'),
+        time: format(initialData.date, 'HH:mm')
+      });
       setImage(null);
       setImagePreview(null);
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'événement:', error);
-      
     } finally {
       setLoading(false);
     }
@@ -73,7 +84,11 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
 
   const handleReset = () => {
     handleClose();
-    reset(initialData);
+    reset({
+      ...initialData,
+      date: format(initialData.date, 'yyyy-MM-dd'),
+      time: format(initialData.date, 'HH:mm')
+    });
     setImage(null);
     setImagePreview(null);
   };

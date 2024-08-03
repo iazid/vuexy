@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -60,34 +62,35 @@ const EventListTable = () => {
   const [editEventOpen, setEditEventOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const fetchEvents = async () => {
+    setStatus('loading');
+    try {
+      const eventsCollectionRef = collection(adb, 'events');
+      const eventData = await getDocs(eventsCollectionRef);
+      const eventsList = await Promise.all(eventData.docs.map(async (document) => {
+        try {
+          let event = EventFactory(document);
+          event.id = document.id; // Inclure l'ID de l'événement
+          const imageRef = ref(storagedb, `events/${document.id}/pic`);
+          event.avatar = await getDownloadURL(imageRef).catch(() => `events/${document.id}/pic`);
+          return event;
+        } catch (error) {
+          console.error("Error fetching event data:", error);
+          return null;
+        }
+      }));
+
+      const validEvents = eventsList.filter(event => event);
+      setEvents(validEvents);
+      setFilteredEvents(validEvents);
+      setStatus('succeeded');
+    } catch (err) {
+      setError(err.message);
+      setStatus('failed');
+    }
+  };
+
   useEffect(() => {
-    const fetchEvents = async () => {
-      setStatus('loading');
-      try {
-        const eventsCollectionRef = collection(adb, 'events');
-        const eventData = await getDocs(eventsCollectionRef);
-        const eventsList = await Promise.all(eventData.docs.map(async doc => {
-          try {
-            let event = EventFactory(doc);
-            const imageRef = ref(storagedb, `events/${doc.id}/pic`);
-            event.avatar = await getDownloadURL(imageRef).catch(() => `events/${doc.id}/pic`);
-            return event;
-          } catch (error) {
-            console.error("Error fetching event data:", error);
-            return null;
-          }
-        }));
-
-        const validEvents = eventsList.filter(event => event);
-        setEvents(validEvents);
-        setFilteredEvents(validEvents);
-        setStatus('succeeded');
-      } catch (err) {
-        setError(err.message);
-        setStatus('failed');
-      }
-    };
-
     fetchEvents();
   }, []);
 
@@ -121,8 +124,8 @@ const EventListTable = () => {
           <Typography 
             variant="body1" 
             onClick={() => {
-              setSelectedEvent(row.original);
-              setEditEventOpen(true);
+              setSelectedEvent(row.original); // Set the selected event
+              setEditEventOpen(true); // Open the edit drawer
             }}
             style={{ cursor: 'pointer' }}
           >
@@ -173,12 +176,8 @@ const EventListTable = () => {
   };
 
   const handleEventUpdated = async () => {
-    const eventDoc = await getDoc(doc(adb, 'events', selectedEvent.id));
-    const updatedEvent = EventFactory(eventDoc);
-    const imageRef = ref(storagedb, `events/${selectedEvent.id}/pic`);
-    updatedEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${selectedEvent.id}/pic`);
-    setEvents(prevEvents => prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event));
-    setFilteredEvents(prevEvents => prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event));
+    await fetchEvents(); // Fetch all events again
+    setEditEventOpen(false);
   };
 
   if (status === 'loading') {
@@ -212,9 +211,9 @@ const EventListTable = () => {
               fontWeight: 'bold'
             }}
           >
-            <MenuItem value='upcoming'>Upcoming Events</MenuItem>
-            <MenuItem value='today'>Today's Events</MenuItem>
-            <MenuItem value='passed'>Past Events</MenuItem>
+            <MenuItem value='upcoming'>Evenements futurs</MenuItem>
+            <MenuItem value='today'>Evenements d'aujourd'hui</MenuItem>
+            <MenuItem value='passed'>Evenements passés</MenuItem>
           </Select>
         </div>
         <Button
@@ -228,7 +227,7 @@ const EventListTable = () => {
       </div>
       <br/>
       <Card>
-        <CardHeader title='Filters' className='pbe-4' />
+        <CardHeader title='Filtres' className='pbe-4' />
         <EventFilters setData={setFilteredEvents} eventData={events} />
       </Card>
       <br/>
@@ -237,7 +236,7 @@ const EventListTable = () => {
           <DebouncedInput
             value={globalFilter ?? ''}
             onChange={value => setGlobalFilter(String(value))}
-            placeholder='Search Event'
+            placeholder='Rechercher un évènement'
             className='is-full sm:is-auto'
           />
         </div>
@@ -301,7 +300,6 @@ const EventListTable = () => {
         open={editEventOpen}
         handleClose={() => setEditEventOpen(false)}
         eventId={selectedEvent?.id}
-        eventImage={selectedEvent?.avatar}  // Pass the image URL
         onEventUpdated={handleEventUpdated}
       />
     </div>

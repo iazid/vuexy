@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, FormControlLabel, CircularProgress, Switch } from '@mui/material';
+import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, CircularProgress, FormControlLabel, Switch } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import FirebaseService from '../../app/firebase/firebaseService';
 import { adb } from '../../app/firebase/firebaseconfigdb';
 
-const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdated, selectedEvent }) => {
+const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
   const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
@@ -18,97 +17,62 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
       dressed_up: false,
       regular_price: 0,
       simpEntry: 0,
-      visible: true
     }
   });
 
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(eventImage || null);
   const [loading, setLoading] = useState(false);
 
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
+    const date = new Date(timestamp.seconds * 1000);
     return date.toISOString().split('T')[0];
   };
 
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
+    const date = new Date(timestamp.seconds * 1000);
     return date.toTimeString().split(' ')[0].slice(0, 5);
   };
 
-  useEffect(() => {
-    const fetchEventData = async () => {
-      if (eventId) {
-        try {
-          const docRef = doc(adb, 'events', eventId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const eventData = docSnap.data();
-            Object.keys(eventData).forEach(key => {
-              if (key === 'date') {
-                setValue('date', formatDate(eventData[key]));
-                setValue('time', formatTime(eventData[key]));
-              } else {
-                setValue(key, eventData[key] || '');
-              }
-            });
-            if (eventData.imageUri) {
-              setImagePreview(eventData.imageUri);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching event data:", error);
+  const fetchEventData = async () => {
+    if (eventId) {
+      try {
+        const docRef = doc(adb, 'events', eventId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const eventData = docSnap.data();
+          const eventTimestamp = eventData.date || eventData.time;
+          setValue('date', formatDate(eventTimestamp));
+          setValue('time', formatTime(eventTimestamp));
+          setValue('name', eventData.name || '');
+          setValue('address', eventData.address || '');
+          setValue('description', eventData.description || '');
+          setValue('place_description', eventData.place_description || '');
+          setValue('dressed_up', eventData.dressed_up || false);
+          setValue('regular_price', eventData.regular_price || 0);
+          setValue('simpEntry', eventData.simpEntry || 0);
         }
-      } else if (selectedEvent) {
-        // Set the selected event data directly
-        Object.keys(selectedEvent).forEach(key => {
-          if (key === 'date') {
-            setValue('date', formatDate(selectedEvent[key]));
-            setValue('time', formatTime(selectedEvent[key]));
-          } else {
-            setValue(key, selectedEvent[key] || '');
-          }
-        });
-        setImagePreview(selectedEvent.avatar);
-      } else {
-        reset({
-          name: '',
-          date: '',
-          time: '',
-          address: '',
-          description: '',
-          place_description: '',
-          dressed_up: false,
-          regular_price: 0,
-          simpEntry: 0,
-          visible: true
-        });
-        setImage(null);
-        setImagePreview(null);
+      } catch (error) {
+        console.error("Error fetching event data:", error);
       }
-    };
-
-    fetchEventData();
-  }, [eventId, selectedEvent, setValue, reset]);
+    } else {
+      reset({
+        name: '',
+        date: '',
+        time: '',
+        address: '',
+        description: '',
+        place_description: '',
+        dressed_up: false,
+        regular_price: 0,
+        simpEntry: 0,
+      });
+    }
+  };
 
   useEffect(() => {
-    if (eventImage) {
-      setImagePreview(eventImage);
+    if (open) {
+      fetchEventData();
     }
-  }, [eventImage]);
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleImageRemove = () => {
-    setImage(null);
-    setImagePreview(null);
-  };
+  }, [open, eventId]);
 
   const handleReset = () => {
     handleClose();
@@ -122,20 +86,44 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
       dressed_up: false,
       regular_price: 0,
       simpEntry: 0,
-      visible: true
     });
-    setImage(null);
-    setImagePreview(null);
   };
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Update the event with the new data (omitted for brevity)
-      onEventUpdated(eventId, data);
+      const eventDocRef = doc(adb, 'events', eventId);
+      const eventTimestamp = Timestamp.fromDate(new Date(`${data.date}T${data.time}:00`));
+      const updatedEvent = { 
+        name: data.name,
+        date: eventTimestamp,
+        time: eventTimestamp,
+        address: data.address,
+        description: data.description,
+        place_description: data.place_description,
+        dressed_up: data.dressed_up,
+        regular_price: Number(data.regular_price),  
+        simpEntry: Number(data.simpEntry),          
+      };
+
+      await FirebaseService.updateEvent(eventDocRef, updatedEvent);
+
+      onEventUpdated();
       handleClose();
+      reset({
+        name: '',
+        date: '',
+        time: '',
+        address: '',
+        description: '',
+        place_description: '',
+        dressed_up: false,
+        regular_price: 0,
+        simpEntry: 0,
+      });
+      fetchEventData(); 
     } catch (error) {
-      console.error('Error updating event:', error);
+      console.error('Erreur lors de la mise à jour de l\'événement:', error);
     } finally {
       setLoading(false);
     }
@@ -158,29 +146,6 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
       </Box>
       <Divider />
       <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
-        <input
-          accept="image/*"
-          style={{ display: 'none' }}
-          id="raised-button-file-edit"
-          type="file"
-          onChange={handleImageChange}
-        />
-        <label htmlFor="raised-button-file-edit">
-          <Button variant="contained" component="span">
-            Sélectionner une image
-          </Button>
-        </label>
-        {imagePreview && (
-          <Box sx={{ position: 'relative', display: 'inline-block' }}>
-            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '100%', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
-            <IconButton
-              sx={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255, 255, 255, 0.7)' }}
-              onClick={handleImageRemove}
-            >
-              <i className='tabler-trash text-textPrimary' />
-            </IconButton>
-          </Box>
-        )}
         <Controller
           name='name'
           control={control}
@@ -326,7 +291,6 @@ const EditEventDrawer = ({ open, handleClose, eventId, eventImage, onEventUpdate
           </Button>
         </Box>
       </Box>
-      <ToastContainer />
     </Drawer>
   );
 };

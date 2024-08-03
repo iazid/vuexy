@@ -50,18 +50,19 @@ class FirebaseService {
     }
   }
 
-  static async uploadEventImage(imageData, eventId, fileName) {
+  static async uploadEventImage(file, eventId, imageType) {
     try {
-      const filePath = `events/${eventId}/${fileName}`;
-      const storageRef = ref(storagedb, filePath);
-      await uploadBytes(storageRef, imageData);
-      return filePath;
+      const storageRef = ref(storagedb, `events/${eventId}/${imageType}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
     } catch (error) {
-      console.error("Erreur lors du téléchargement de l'image de l'événement:", error);
+      console.error("Erreur lors de l'upload de l'image:", error);
       throw error;
     }
   }
 
+  
   static async getEventImageUrl(filePath) {
     try {
       const storageRef = ref(storagedb, filePath);
