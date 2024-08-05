@@ -45,9 +45,10 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
       const newEvent = new EventModel({
         ...formData,
         date: eventTimestamp,
+        time: eventTimestamp,
         regular_price: parseFloat(formData.regular_price),
         simpEntry: parseFloat(formData.simpEntry),
-        place: new GeoPoint(48.86717729999999, 2.3071846)
+        place: new GeoPoint(0.0, 0.0) 
       });
 
       const plainData = newEvent.toPlainObject();
@@ -161,22 +162,6 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
               InputLabelProps={{ shrink: true }}
               error={!!errors.date}
               helperText={errors.date ? errors.date.message : ''}
-            />
-          )}
-        />
-        <Controller
-          name='time'
-          control={control}
-          rules={{ required: 'Ce champ est requis.' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              fullWidth
-              type="time"
-              label='Heure'
-              InputLabelProps={{ shrink: true }}
-              error={!!errors.time}
-              helperText={errors.time ? errors.time.message : ''}
             />
           )}
         />

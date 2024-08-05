@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, CircularProgress, FormControlLabel, Switch } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import FirebaseService from '../../app/firebase/firebaseService';
-import { adb } from '../../app/firebase/firebaseconfigdb';
+import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
 
 const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
   const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
@@ -21,6 +22,8 @@ const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp.seconds * 1000);
@@ -49,6 +52,9 @@ const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
           setValue('dressed_up', eventData.dressed_up || false);
           setValue('regular_price', eventData.regular_price || 0);
           setValue('simpEntry', eventData.simpEntry || 0);
+          if (eventData.pic) {
+            setImagePreview(await getDownloadURL(ref(storagedb, eventData.pic)));
+          }
         }
       } catch (error) {
         console.error("Error fetching event data:", error);
@@ -87,6 +93,28 @@ const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
       regular_price: 0,
       simpEntry: 0,
     });
+    setImage(null);
+    setImagePreview(null);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleImageRemove = () => {
+    setImage(null);
+    setImagePreview(null);
+  };
+
+  const uploadImage = async (file, path) => {
+    const imageRef = ref(storagedb, path);
+    await uploadBytes(imageRef, file);
+    const imageUrl = await getDownloadURL(imageRef);
+    return imageUrl;
   };
 
   const onSubmit = async (data) => {
@@ -105,6 +133,20 @@ const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
         regular_price: Number(data.regular_price),  
         simpEntry: Number(data.simpEntry),          
       };
+
+      if (image && eventId) {
+        const normalImagePath = `events/${eventId}/pic`;
+        const croppedImagePath = `events/${eventId}/pic_cropped`;
+
+        // Upload images
+        await uploadImage(image, normalImagePath);
+        await uploadImage(image, croppedImagePath);
+
+        // Update event document with image paths
+        updatedEvent.imageUri = normalImagePath;
+        updatedEvent.pic = normalImagePath;
+        updatedEvent.croppedUri = croppedImagePath;
+      }
 
       await FirebaseService.updateEvent(eventDocRef, updatedEvent);
 
@@ -146,6 +188,29 @@ const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
       </Box>
       <Divider />
       <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
+        <input
+          accept="image/*"
+          style={{ display: 'none' }}
+          id="raised-button-file-edit"
+          type="file"
+          onChange={handleImageChange}
+        />
+        <label htmlFor="raised-button-file-edit">
+          <Button variant="contained" component="span">
+            Sélectionner une image
+          </Button>
+        </label>
+        {imagePreview && (
+          <Box sx={{ position: 'relative', display: 'inline-block' }}>
+            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '100%', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
+            <IconButton
+              sx={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255, 255, 255, 0.7)' }}
+              onClick={handleImageRemove}
+            >
+              <i className='tabler-trash text-textPrimary' />
+            </IconButton>
+          </Box>
+        )}
         <Controller
           name='name'
           control={control}
