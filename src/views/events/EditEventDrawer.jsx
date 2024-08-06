@@ -202,7 +202,7 @@ const EditEventDrawer = ({ open, handleClose, eventId, onEventUpdated }) => {
         </label>
         {imagePreview && (
           <Box sx={{ position: 'relative', display: 'inline-block' }}>
-            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '100%', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
+            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '300px', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
             <IconButton
               sx={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255, 255, 255, 0.7)' }}
               onClick={handleImageRemove}

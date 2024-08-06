@@ -15,7 +15,6 @@ import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 
-
 const BadgeContentSpan = styled('span')({
   width: 8,
   height: 8,
@@ -31,15 +30,15 @@ const UserDropdown = () => {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const router = useRouter();
- 
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     const userSession = sessionStorage.getItem('user');
-    if (!user && !userSession ) {
+    if (!user && !userSession) {
       router.push('/login');
     }
+    setIsClient(true); // Indiquer que le composant est monté côté client
   }, [user, router]);
-
 
   const handleDropdownOpen = () => {
     setOpen(prevOpen => !prevOpen);
@@ -57,8 +56,11 @@ const UserDropdown = () => {
 
   const handleUserLogout = async () => {
     await signOut();
-    router.push('/login'); 
+    router.push('/login');
   };
+
+  const avatarAlt = user?.displayName || 'User';
+  const avatarSrc = user?.photoURL || '/images/avatars/default.png';
 
   return (
     <>
@@ -69,13 +71,15 @@ const UserDropdown = () => {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         className='mis-2'
       >
-        <Avatar
-          ref={anchorRef}
-          alt={user?.displayName || 'User'}
-          src={user?.photoURL || '/images/avatars/default.png'}
-          onClick={handleDropdownOpen}
-          className='cursor-pointer bs-[38px] is-[38px]'
-        />
+        {isClient && (
+          <Avatar
+            ref={anchorRef}
+            alt={avatarAlt}
+            src={avatarSrc}
+            onClick={handleDropdownOpen}
+            className='cursor-pointer bs-[38px] is-[38px]'
+          />
+        )}
       </Badge>
       <Popper
         open={open}
@@ -96,10 +100,12 @@ const UserDropdown = () => {
               <ClickAwayListener onClickAway={e => handleDropdownClose(e)}>
                 <MenuList>
                   <div className='flex items-center plb-2 pli-6 gap-2' tabIndex={-1}>
-                    <Avatar alt={user?.displayName || 'User'} src={user?.photoURL || '/images/avatars/default.png'} />
+                    {isClient && (
+                      <Avatar alt={avatarAlt} src={avatarSrc} />
+                    )}
                     <div className='flex items-start flex-col'>
                       <Typography className='font-medium' color='text.primary'>
-                        {user?.displayName || 'Username'}
+                        {avatarAlt}
                       </Typography>
                       <Typography variant='caption'>{user?.email}</Typography>
                     </div>

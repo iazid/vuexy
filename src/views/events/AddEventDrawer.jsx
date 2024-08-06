@@ -11,11 +11,17 @@ import EventModel from '../../utils/EventModel';
 const initialData = new EventModel();
 
 const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
-  const { control, reset, handleSubmit, formState: { errors } } = useForm({
+  const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
-      ...initialData,
-      date: format(initialData.date, 'yyyy-MM-dd'),
-      time: format(initialData.date, 'HH:mm')
+      name: '',
+      date: '',
+      time: '',
+      address: '',
+      description: '',
+      place_description: '',
+      dressed_up: false,
+      regular_price: '',
+      simpEntry: '',
     }
   });
 
@@ -70,9 +76,15 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
       onEventAdded(eventDocRef.id);
       handleClose();
       reset({
-        ...initialData,
-        date: format(initialData.date, 'yyyy-MM-dd'),
-        time: format(initialData.date, 'HH:mm')
+        name: '',
+        date: '',
+        time: '',
+        address: '',
+        description: '',
+        place_description: '',
+        dressed_up: false,
+        regular_price: '',
+        simpEntry: '',
       });
       setImage(null);
       setImagePreview(null);
@@ -86,13 +98,21 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
   const handleReset = () => {
     handleClose();
     reset({
-      ...initialData,
-      date: format(initialData.date, 'yyyy-MM-dd'),
-      time: format(initialData.date, 'HH:mm')
+      name: '',
+      date: '',
+      time: '',
+      address: '',
+      description: '',
+      place_description: '',
+      dressed_up: false,
+      regular_price: '',
+      simpEntry: '',
     });
     setImage(null);
     setImagePreview(null);
   };
+
+  const today = new Date().toISOString().split('T')[0]; // Obtenir la date d'aujourd'hui au format ISO
 
   return (
     <Drawer
@@ -125,7 +145,7 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
         </label>
         {imagePreview && (
           <Box sx={{ position: 'relative', display: 'inline-block' }}>
-            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '100%', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
+            <img src={imagePreview} alt="Aperçu de l'événement" style={{ width: '300px', height: 'auto', marginTop: '16px', marginBottom: '16px' }} />
             <IconButton
               sx={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255, 255, 255, 0.7)' }}
               onClick={handleImageRemove}
@@ -162,6 +182,23 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
               InputLabelProps={{ shrink: true }}
               error={!!errors.date}
               helperText={errors.date ? errors.date.message : ''}
+              inputProps={{ min: today }} 
+            />
+          )}
+        />
+        <Controller
+          name='time'
+          control={control}
+          rules={{ required: 'Ce champ est requis.' }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              type="time"
+              label='Heure'
+              InputLabelProps={{ shrink: true }}
+              error={!!errors.time}
+              helperText={errors.time ? errors.time.message : ''}
             />
           )}
         />

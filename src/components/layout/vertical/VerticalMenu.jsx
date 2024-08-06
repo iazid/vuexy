@@ -66,13 +66,13 @@ const VerticalMenu = ({ scrollMenu }) => {
         <MenuItem href='/about' icon={<i className='tabler-info-circle' />}>
           A propos
         </MenuItem>
-        <MenuItem href='/events' icon={<i className='tabler-star' />}>
+        <MenuItem href='/events/eventpage' icon={<i className='tabler-star' />}>
           Evenements
         </MenuItem>
         <SubMenu label='Produits' icon={<i className='tabler-bottle' />}>
           <MenuItem href='/productTypes' >Catégories de Produits</MenuItem>
           <MenuItem href='/products'>Liste de Produits</MenuItem>
-          {/*<MenuItem href='/eventtest'>Liste test event</MenuItem>*/}
+          {/*<MenuItem href='/eventtest/eventpage'>Liste test event</MenuItem>*/}
           {/*<MenuItem href='/eventsZ'>EventsZ</MenuItem>*/}
           
         </SubMenu>

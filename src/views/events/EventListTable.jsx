@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 
@@ -25,11 +26,10 @@ import {
 import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import CustomTextField from '@core/components/mui/TextField';
-import EventFilters from './EventFilters';
 import AddEventDrawer from './AddEventDrawer';
-import EditEventDrawer from './EditEventDrawer';
 import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
 import EventFactory from '../../utils/EventFactory';
+import { slugify } from '../../utils/slugify'; // Importez votre fonction slugify
 
 const Icon = styled('i')({});
 
@@ -52,6 +52,7 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
 };
 
 const EventListTable = () => {
+  const router = useRouter();
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [status, setStatus] = useState('idle');
@@ -59,8 +60,6 @@ const EventListTable = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('passed');
   const [addEventOpen, setAddEventOpen] = useState(false);
-  const [editEventOpen, setEditEventOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const fetchEvents = async () => {
     setStatus('loading');
@@ -71,6 +70,7 @@ const EventListTable = () => {
         try {
           let event = EventFactory(document);
           event.id = document.id; // Inclure l'ID de l'événement
+          event.slug = slugify(event.name); // Ajouter le slug
           const imageRef = ref(storagedb, `events/${document.id}/pic`);
           event.avatar = await getDownloadURL(imageRef).catch(() => `events/${document.id}/pic`);
           return event;
@@ -124,8 +124,7 @@ const EventListTable = () => {
           <Typography 
             variant="body1" 
             onClick={() => {
-              setSelectedEvent(row.original); // Set the selected event
-              setEditEventOpen(true); // Open the edit drawer
+              router.push(`/events/eventpage/${row.original.slug}`); // Redirect to the event detail page using slug
             }}
             style={{ cursor: 'pointer' }}
           >
@@ -171,13 +170,9 @@ const EventListTable = () => {
     const newEvent = EventFactory(eventDoc);
     const imageRef = ref(storagedb, `events/${eventId}/pic`);
     newEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
+    newEvent.slug = slugify(newEvent.name); // Ajouter le slug
     setEvents(prevEvents => [...prevEvents, newEvent]);
     setFilteredEvents(prevEvents => [...prevEvents, newEvent]);
-  };
-
-  const handleEventUpdated = async () => {
-    await fetchEvents(); // Fetch all events again
-    setEditEventOpen(false);
   };
 
   if (status === 'loading') {
@@ -199,20 +194,20 @@ const EventListTable = () => {
             variant="standard"
             inputProps={{
               style: {
-                fontSize: '3rem',
+                fontSize: '2.5rem',
                 fontWeight: 'bold',
                 border: 'none'
               }
             }}
             IconComponent={ArrowDropDownIcon}
             style={{
-              minWidth: '250px', 
+              minWidth: '320px', 
               fontSize: '1.8rem',
               fontWeight: 'bold'
             }}
           >
             <MenuItem value='upcoming'>Evenements futurs</MenuItem>
-            <MenuItem value='today'>Evenements d'aujourd'hui</MenuItem>
+            <MenuItem value='today'>Evenements actuels</MenuItem>
             <MenuItem value='passed'>Evenements passés</MenuItem>
           </Select>
         </div>
@@ -226,10 +221,7 @@ const EventListTable = () => {
         </Button>
       </div>
       <br/>
-      <Card>
-        <CardHeader title='Filtres' className='pbe-4' />
-        <EventFilters setData={setFilteredEvents} eventData={events} />
-      </Card>
+      
       <br/>
       <Card>
         <div className='flex justify-between flex-col items-start md:flex-row md:items-center p-6 border-bs gap-4'>
@@ -295,12 +287,6 @@ const EventListTable = () => {
         open={addEventOpen}
         handleClose={() => setAddEventOpen(false)}
         onEventAdded={handleEventAdded}
-      />
-      <EditEventDrawer
-        open={editEventOpen}
-        handleClose={() => setEditEventOpen(false)}
-        eventId={selectedEvent?.id}
-        onEventUpdated={handleEventUpdated}
       />
     </div>
   );

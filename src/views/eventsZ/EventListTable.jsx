@@ -25,7 +25,6 @@ import {
 import CustomAvatar from '@core/components/mui/Avatar';
 import tableStyles from '@core/styles/table.module.css';
 import CustomTextField from '@core/components/mui/TextField';
-import EventFilters from './EventFilters';
 import AddEventDrawer from './AddEventDrawer';
 import EditEventDrawer from './EditEventDrawer';
 import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
@@ -199,20 +198,20 @@ const EventListTable = () => {
             variant="standard"
             inputProps={{
               style: {
-                fontSize: '3rem',
+                fontSize: '2.5rem',
                 fontWeight: 'bold',
                 border: 'none'
               }
             }}
             IconComponent={ArrowDropDownIcon}
             style={{
-              minWidth: '250px', 
+              minWidth: '320px', 
               fontSize: '1.8rem',
               fontWeight: 'bold'
             }}
           >
             <MenuItem value='upcoming'>Evenements futurs</MenuItem>
-            <MenuItem value='today'>Evenements d'aujourd'hui</MenuItem>
+            <MenuItem value='today'>Evenements actuels</MenuItem>
             <MenuItem value='passed'>Evenements passés</MenuItem>
           </Select>
         </div>
@@ -226,10 +225,7 @@ const EventListTable = () => {
         </Button>
       </div>
       <br/>
-      <Card>
-        <CardHeader title='Filtres' className='pbe-4' />
-        <EventFilters setData={setFilteredEvents} eventData={events} />
-      </Card>
+      
       <br/>
       <Card>
         <div className='flex justify-between flex-col items-start md:flex-row md:items-center p-6 border-bs gap-4'>
