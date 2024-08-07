@@ -58,7 +58,7 @@ const EventListTable = () => {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('passed');
+  const [dateFilter, setDateFilter] = useState('all');
   const [addEventOpen, setAddEventOpen] = useState(false);
 
   const fetchEvents = async () => {
@@ -105,7 +105,11 @@ const EventListTable = () => {
       return true;
     });
 
-    setFilteredEvents(filteredData);
+    if (dateFilter === 'all') {
+      setFilteredEvents(events);
+    } else {
+      setFilteredEvents(filteredData);
+    }
   }, [dateFilter, events]);
 
   const columnHelper = createColumnHelper();
@@ -206,9 +210,10 @@ const EventListTable = () => {
               fontWeight: 'bold'
             }}
           >
-            <MenuItem value='upcoming'>Evenements futurs</MenuItem>
-            <MenuItem value='today'>Evenements actuels</MenuItem>
-            <MenuItem value='passed'>Evenements passés</MenuItem>
+            <MenuItem value='all'>Tous les évènements</MenuItem>
+            <MenuItem value='upcoming'>évènements futurs</MenuItem>
+            <MenuItem value='today'>évènements actuels</MenuItem>
+            <MenuItem value='passed'>évènements passés</MenuItem>
           </Select>
         </div>
         <Button
@@ -263,14 +268,14 @@ const EventListTable = () => {
               <tbody>
                 <tr>
                   <td colSpan={table.getVisibleFlatColumns().length} className='text-center'>
-                    No data available
+                   Aucun évènement correspondant
                   </td>
                 </tr>
               </tbody>
             ) : (
               <tbody>
                 {table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
+                  <tr key={row.id} className={classnames({ selected: row.getIsSelected() })} style={{ height: '200px' }}>
                     {row.getVisibleCells().map(cell => (
                       <td key={cell.id} style={{ minWidth: '200px' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

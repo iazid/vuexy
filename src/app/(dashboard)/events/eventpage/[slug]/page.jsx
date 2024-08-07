@@ -3,13 +3,139 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Button, Box, CircularProgress, IconButton, Typography, Divider, TextField, FormControlLabel, Switch, Container, useTheme } from '@mui/material';
+import { Button, Box, CircularProgress, IconButton, Typography, Divider, TextField, FormControlLabel, Switch, Container, useTheme, Drawer } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import FirebaseService from '../../../../../app/firebase/firebaseService';
 import { adb, storagedb } from '../../../../firebase/firebaseconfigdb';
 import { slugify } from '../../../../../utils/slugify';
+
+const AddTableDrawer = ({ open, handleClose }) => {
+  const { control, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: {
+      tableName: '',
+      price: '',
+      guests: '',
+      tableNumber: '',
+      description: '',
+    }
+  });
+
+  const onSubmit = (data) => {
+    // Logic for handling table addition will be implemented here
+    console.log(data);
+  };
+
+  return (
+    <Drawer
+      open={open}
+      anchor='right'
+      variant='temporary'
+      onClose={handleClose}
+      ModalProps={{ keepMounted: true }}
+      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 500, md: 600 } } }}
+    >
+      <Box className='flex items-center justify-between p-5'>
+        <Typography variant='h5'>Ajouter une table</Typography>
+        <IconButton size='small' onClick={handleClose}>
+          <i className='tabler-x text-2xl text-textPrimary' />
+        </IconButton>
+      </Box>
+      <Divider />
+      <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
+        <Controller
+          name='tableName'
+          control={control}
+          rules={{ required: 'Ce champ est requis.' }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label='Nom de la table'
+              placeholder='Nom de la table'
+              error={!!errors.tableName}
+              helperText={errors.tableName ? errors.tableName.message : ''}
+            />
+          )}
+        />
+        <Controller
+          name='price'
+          control={control}
+          rules={{ required: 'Ce champ est requis.' }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              type="number"
+              label='Prix'
+              placeholder='Prix'
+              error={!!errors.price}
+              helperText={errors.price ? errors.price.message : ''}
+            />
+          )}
+        />
+        <Controller
+          name='guests'
+          control={control}
+          rules={{ required: 'Ce champ est requis.' }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              type="number"
+              label="Nombre d'invités"
+              placeholder="Nombre d'invités"
+              error={!!errors.guests}
+              helperText={errors.guests ? errors.guests.message : ''}
+            />
+          )}
+        />
+        <Controller
+          name='tableNumber'
+          control={control}
+          rules={{ required: 'Ce champ est requis.' }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              type="number"
+              label='Nombre de tables'
+              placeholder='Nombre de tables'
+              error={!!errors.tableNumber}
+              helperText={errors.tableNumber ? errors.tableNumber.message : ''}
+            />
+          )}
+        />
+        <Controller
+          name='description'
+          control={control}
+          rules={{ required: 'Ce champ est requis.' }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              multiline
+              rows={4}
+              label='Description'
+              placeholder='Description'
+              error={!!errors.description}
+              helperText={errors.description ? errors.description.message : ''}
+            />
+          )}
+        />
+        <Box display="flex" justifyContent="space-between">
+          <Button variant='contained' type='submit'>
+            Ajouter
+          </Button>
+          <Button variant='tonal' color='error' onClick={handleClose}>
+            Annuler
+          </Button>
+        </Box>
+      </Box>
+    </Drawer>
+  );
+};
 
 const EditEventPage = () => {
   const theme = useTheme();
@@ -33,6 +159,7 @@ const EditEventPage = () => {
   const [loading, setLoading] = useState(true);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false); // State for table drawer
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp.seconds * 1000);
@@ -147,8 +274,7 @@ const EditEventPage = () => {
     }
   };
 
-  const today = new Date().toISOString().split('T')[0]; // Obtenir la date d'aujourd'hui au format ISO
-
+  const today = new Date().toISOString().split('T')[0];
 
   return (
     <Container className='overflow-x-auto' maxWidth="xl" sx={{ paddingY: 3, paddingX: 2 }}>
@@ -158,7 +284,6 @@ const EditEventPage = () => {
           padding: 10,
           borderRadius: 1,
           boxShadow: 1,
-          
         }}
       >
         <Typography variant='h5'>Modifier l'événement</Typography>
@@ -325,10 +450,7 @@ const EditEventPage = () => {
                 helperText={errors.simpEntry ? errors.simpEntry.message : ''}
               />
             )}
-
           />
-          <br/>
-          <br/>
           <Box display="flex" justifyContent="space-between">
             <Button variant='contained' type='submit' disabled={loading}>
               {loading ? <CircularProgress size={24} /> : 'Terminer'}
@@ -338,7 +460,13 @@ const EditEventPage = () => {
             </Button>
           </Box>
         </Box>
+        <Box display="flex" justifyContent="flex-end">
+          <Button variant='contained' onClick={() => setDrawerOpen(true)}>
+            Ajouter une table
+          </Button>
+        </Box>
       </Box>
+      <AddTableDrawer open={drawerOpen} handleClose={() => setDrawerOpen(false)} />
     </Container>
   );
 };
