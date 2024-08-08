@@ -3,139 +3,37 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Button, Box, CircularProgress, IconButton, Typography, Divider, TextField, FormControlLabel, Switch, Container, useTheme, Drawer } from '@mui/material';
-import { useForm, Controller } from 'react-hook-form';
+import { Button, Box, CircularProgress, Typography, Divider, Container, useTheme, Tabs, Tab } from '@mui/material';
+import { useForm } from 'react-hook-form';
 import { Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import FirebaseService from '../../../../../app/firebase/firebaseService';
 import { adb, storagedb } from '../../../../firebase/firebaseconfigdb';
 import { slugify } from '../../../../../utils/slugify';
+import AddTableForm from '../../../../../views/events/tabs/tableTab';
+import EditEventForm from '../../../../../views/events/tabs/editTab';
 
-const AddTableDrawer = ({ open, handleClose }) => {
-  const { control, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: {
-      tableName: '',
-      price: '',
-      guests: '',
-      tableNumber: '',
-      description: '',
-    }
-  });
+const Category2 = ({ handleClose }) => (
+  <Box>
+    <br />
+    <Typography variant='h4'>Ajouter une table</Typography>
+    <AddTableForm handleClose={handleClose} />
+  </Box>
+);
 
-  const onSubmit = (data) => {
-    // Logic for handling table addition will be implemented here
-    console.log(data);
-  };
+const Category3 = () => (
+  <Box>
+    <Typography variant='h6'>a faire</Typography>
+    
+  </Box>
+);
 
-  return (
-    <Drawer
-      open={open}
-      anchor='right'
-      variant='temporary'
-      onClose={handleClose}
-      ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 500, md: 600 } } }}
-    >
-      <Box className='flex items-center justify-between p-5'>
-        <Typography variant='h5'>Ajouter une table</Typography>
-        <IconButton size='small' onClick={handleClose}>
-          <i className='tabler-x text-2xl text-textPrimary' />
-        </IconButton>
-      </Box>
-      <Divider />
-      <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
-        <Controller
-          name='tableName'
-          control={control}
-          rules={{ required: 'Ce champ est requis.' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              fullWidth
-              label='Nom de la table'
-              placeholder='Nom de la table'
-              error={!!errors.tableName}
-              helperText={errors.tableName ? errors.tableName.message : ''}
-            />
-          )}
-        />
-        <Controller
-          name='price'
-          control={control}
-          rules={{ required: 'Ce champ est requis.' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              fullWidth
-              type="number"
-              label='Prix'
-              placeholder='Prix'
-              error={!!errors.price}
-              helperText={errors.price ? errors.price.message : ''}
-            />
-          )}
-        />
-        <Controller
-          name='guests'
-          control={control}
-          rules={{ required: 'Ce champ est requis.' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              fullWidth
-              type="number"
-              label="Nombre d'invités"
-              placeholder="Nombre d'invités"
-              error={!!errors.guests}
-              helperText={errors.guests ? errors.guests.message : ''}
-            />
-          )}
-        />
-        <Controller
-          name='tableNumber'
-          control={control}
-          rules={{ required: 'Ce champ est requis.' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              fullWidth
-              type="number"
-              label='Nombre de tables'
-              placeholder='Nombre de tables'
-              error={!!errors.tableNumber}
-              helperText={errors.tableNumber ? errors.tableNumber.message : ''}
-            />
-          )}
-        />
-        <Controller
-          name='description'
-          control={control}
-          rules={{ required: 'Ce champ est requis.' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              fullWidth
-              multiline
-              rows={4}
-              label='Description'
-              placeholder='Description'
-              error={!!errors.description}
-              helperText={errors.description ? errors.description.message : ''}
-            />
-          )}
-        />
-        <Box display="flex" justifyContent="space-between">
-          <Button variant='contained' type='submit'>
-            Ajouter
-          </Button>
-          <Button variant='tonal' color='error' onClick={handleClose}>
-            Annuler
-          </Button>
-        </Box>
-      </Box>
-    </Drawer>
-  );
-};
+const Category4 = () => (
+  <Box>
+    <Typography variant='h6'>A faire</Typography>
+    
+  </Box>
+);
 
 const EditEventPage = () => {
   const theme = useTheme();
@@ -159,7 +57,8 @@ const EditEventPage = () => {
   const [loading, setLoading] = useState(true);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false); // State for table drawer
+
+  const [selectedTab, setSelectedTab] = useState(0);
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp.seconds * 1000);
@@ -276,6 +175,10 @@ const EditEventPage = () => {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const handleTabChange = (event, newValue) => {
+    setSelectedTab(newValue);
+  };
+
   return (
     <Container className='overflow-x-auto' maxWidth="xl" sx={{ paddingY: 3, paddingX: 2 }}>
       <Box
@@ -286,187 +189,34 @@ const EditEventPage = () => {
           boxShadow: 1,
         }}
       >
-        <Typography variant='h5'>Modifier l'événement</Typography>
-        <Divider sx={{ marginY: 2 }} />
-        <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6'>
-          <input
-            accept="image/*"
-            style={{ display: 'none' }}
-            id="raised-button-file-edit"
-            type="file"
-            onChange={handleImageChange}
-          />
-          <label htmlFor="raised-button-file-edit">
-            <Button variant="contained" component="span">
-              Sélectionner une image
-            </Button>
-          </label>
-          {imagePreview && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', marginY: 2 }}>
-              <Box sx={{ position: 'relative' }}>
-                <img src={imagePreview} alt="Aperçu de l'événement" style={{ maxWidth: '400px', maxHeight: '400px', objectFit: 'contain' }} />
-                <IconButton
-                  sx={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255, 255, 255, 0.7)' }}
-                  onClick={handleImageRemove}
-                >
-                  <i className='tabler-trash text-textPrimary' />
-                </IconButton>
-              </Box>
-            </Box>
-          )}
-          <Controller
-            name='name'
+        
+        <Tabs value={selectedTab} onChange={handleTabChange} aria-label="basic tabs example">
+          <Tab label="Modifier l'évènement" />
+          <Tab label="Ajouter une table" />
+          <Tab label="Demandes" />
+          <Tab label="Synthèse" />
+        </Tabs>
+        
+        {selectedTab === 0 && (
+          <EditEventForm 
             control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                label='Nom'
-                placeholder='Nom'
-                error={!!errors.name}
-                helperText={errors.name ? errors.name.message : ''}
-              />
-            )}
+            handleSubmit={handleSubmit}
+            setValue={setValue}
+            errors={errors}
+            loading={loading}
+            handleImageChange={handleImageChange}
+            handleImageRemove={handleImageRemove}
+            imagePreview={imagePreview}
+            today={today}
+            onSubmit={onSubmit}
+            router={router}
+            
           />
-          <Controller
-            name='date'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                type="date"
-                label='Date'
-                InputLabelProps={{ shrink: true }}
-                error={!!errors.date}
-                helperText={errors.date ? errors.date.message : ''}
-                inputProps={{ min: today }} 
-              />
-            )}
-          />
-          <Controller
-            name='time'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                type="time"
-                label='Heure'
-                InputLabelProps={{ shrink: true }}
-                error={!!errors.time}
-                helperText={errors.time ? errors.time.message : ''}
-              />
-            )}
-          />
-          <Controller
-            name='address'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                label='Adresse'
-                placeholder='Adresse'
-                error={!!errors.address}
-                helperText={errors.address ? errors.address.message : ''}
-              />
-            )}
-          />
-          <Controller
-            name='description'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                multiline
-                rows={4}
-                label='Description'
-                placeholder='Description'
-                error={!!errors.description}
-                helperText={errors.description ? errors.description.message : ''}
-              />
-            )}
-          />
-          <Controller
-            name='place_description'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                label='Description du lieu'
-                placeholder='Description du lieu'
-                error={!!errors.place_description}
-                helperText={errors.place_description ? errors.place_description.message : ''}
-              />
-            )}
-          />
-          <Controller
-            name='dressed_up'
-            control={control}
-            render={({ field }) => (
-              <FormControlLabel
-                control={<Switch {...field} checked={!!field.value} />}
-                label="Tenue habillée"
-              />
-            )}
-          />
-          <Controller
-            name='regular_price'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                type="number"
-                label='Prix régulier'
-                placeholder='Prix régulier'
-                error={!!errors.regular_price}
-                helperText={errors.regular_price ? errors.regular_price.message : ''}
-              />
-            )}
-          />
-          <Controller
-            name='simpEntry'
-            control={control}
-            rules={{ required: 'Ce champ est requis.' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                type="number"
-                label='Entrée simple'
-                placeholder='Entrée simple'
-                error={!!errors.simpEntry}
-                helperText={errors.simpEntry ? errors.simpEntry.message : ''}
-              />
-            )}
-          />
-          <Box display="flex" justifyContent="space-between">
-            <Button variant='contained' type='submit' disabled={loading}>
-              {loading ? <CircularProgress size={24} /> : 'Terminer'}
-            </Button>
-            <Button variant='tonal' color='error' type='reset' onClick={() => router.push('/events/eventpage')}>
-              Annuler
-            </Button>
-          </Box>
-        </Box>
-        <Box display="flex" justifyContent="flex-end">
-          <Button variant='contained' onClick={() => setDrawerOpen(true)}>
-            Ajouter une table
-          </Button>
-        </Box>
+        )}
+        {selectedTab === 1 && <Category2  />}
+        {selectedTab === 2 && <Category3 />}
+        {selectedTab === 3 && <Category4 />}
       </Box>
-      <AddTableDrawer open={drawerOpen} handleClose={() => setDrawerOpen(false)} />
     </Container>
   );
 };
