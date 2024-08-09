@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { Button, Box, CircularProgress, Typography, Divider, Container, useTheme, Tabs, Tab } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { Timestamp } from 'firebase/firestore';
@@ -13,29 +13,23 @@ import { slugify } from '../../../../../utils/slugify';
 import AddTableForm from '../../../../../views/events/tabs/tableTab';
 import EditEventForm from '../../../../../views/events/tabs/editTab';
 
-const Category2 = ({ handleClose }) => (
-  <Box>
-    <br />
-    <Typography variant='h4'>Ajouter une table</Typography>
-    <AddTableForm handleClose={handleClose} />
-  </Box>
-);
+const Category2 = ({ eventId }) => {
+  return <AddTableForm eventId={eventId} />;
+};
 
 const Category3 = () => (
   <Box>
-    <Typography variant='h6'>a faire</Typography>
-    
+    <Typography variant='h6'>À faire</Typography>
   </Box>
 );
 
 const Category4 = () => (
   <Box>
-    <Typography variant='h6'>A faire</Typography>
-    
+    <Typography variant='h6'>À faire</Typography>
   </Box>
 );
 
-const EditEventPage = () => {
+const EventPage = () => {
   const theme = useTheme();
   const { slug } = useParams();
   const router = useRouter();
@@ -57,7 +51,6 @@ const EditEventPage = () => {
   const [loading, setLoading] = useState(true);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-
   const [selectedTab, setSelectedTab] = useState(0);
 
   const formatDate = (timestamp) => {
@@ -68,6 +61,10 @@ const EditEventPage = () => {
   const formatTime = (timestamp) => {
     const date = new Date(timestamp.seconds * 1000);
     return date.toTimeString().split(' ')[0].slice(0, 5);
+  };
+
+  const refreshData = async () => {
+    // Logique pour rafraîchir les données après l'ajout ou la modification
   };
 
   useEffect(() => {
@@ -164,6 +161,7 @@ const EditEventPage = () => {
       }
 
       await FirebaseService.updateEvent(eventDocRef, updatedEvent);
+      refreshData();
 
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'événement:', error);
@@ -189,7 +187,6 @@ const EditEventPage = () => {
           boxShadow: 1,
         }}
       >
-        
         <Tabs value={selectedTab} onChange={handleTabChange} aria-label="basic tabs example">
           <Tab label="Modifier l'évènement" />
           <Tab label="Ajouter une table" />
@@ -210,10 +207,9 @@ const EditEventPage = () => {
             today={today}
             onSubmit={onSubmit}
             router={router}
-            
           />
         )}
-        {selectedTab === 1 && <Category2  />}
+        {selectedTab === 1 && <Category2 eventId={eventId} />}
         {selectedTab === 2 && <Category3 />}
         {selectedTab === 3 && <Category4 />}
       </Box>
@@ -221,4 +217,4 @@ const EditEventPage = () => {
   );
 };
 
-export default EditEventPage;
+export default EventPage;
