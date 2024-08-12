@@ -15,14 +15,27 @@ const SimpleEntriesTab = ({ eventId }) => {
       const eventRef = doc(adb, 'events', eventId);
 
       const unsubscribe = FirebaseService.streamSimpleEntries(eventRef, async (snapshot) => {
-        let totalAmountAccumulated = 0; 
+        let totalAmountAccumulated = 0;
         const entriesData = await Promise.all(
           snapshot.docs.map(async (doc) => {
             const entry = doc.data();
             const userSnap = await getDoc(entry.ownerRef);
             const userData = userSnap.exists() ? userSnap.data() : { name: "Inconnu", surname: "" };
-            
-            totalAmountAccumulated += entry.amount || 0; 
+
+            // Accumule les montants de chaque entrée simple
+            totalAmountAccumulated += entry.amount || 0;
+
+            // Pour chaque entrée simple, inclure les totaux de leurs réservations associées
+            if (entry.ordersRef && entry.ordersRef.length > 0) {
+              const paymentDetails = await Promise.all(
+                entry.ordersRef.map(async (orderRef) => {
+                  const orderSnap = await getDoc(orderRef);
+                  const orderData = orderSnap.exists() ? orderSnap.data() : { total: 0 };
+                  return orderData.total || 0;
+                })
+              );
+              totalAmountAccumulated += paymentDetails.reduce((sum, current) => sum + current, 0);
+            }
 
             return {
               ...entry,
@@ -31,7 +44,7 @@ const SimpleEntriesTab = ({ eventId }) => {
           })
         );
         setEntries(entriesData);
-        setTotalAmount(totalAmountAccumulated); 
+        setTotalAmount(totalAmountAccumulated);
         setLoading(false);
       });
 
@@ -62,7 +75,6 @@ const SimpleEntriesTab = ({ eventId }) => {
     <Box>
       <Typography variant="h5" sx={{ mb: 2 }}>
         <br />
-
         Entrées simples
       </Typography>
       <br />
