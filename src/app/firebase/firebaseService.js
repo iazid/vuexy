@@ -1,10 +1,12 @@
 // src/app/firebase/FirebaseService.js
 
 import axios from 'axios';
-import { collection, addDoc, doc, updateDoc, setDoc, getDocs, query, where, orderBy, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDocs, query, where, orderBy, getDoc, Timestamp, onSnapshot} from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { adb, storagedb } from './firebaseconfigdb';
 import { PRODUCT_TYPE, CATEGORY } from '../../utils/ProductType';
+import TableModel from '../../utils/TableModel';
+import Reservation from '@/utils/Reservation';
 
 const baseUri = "https://us-central1-no-matter-ba487.cloudfunctions.net";
 
@@ -347,20 +349,59 @@ class FirebaseService {
     });
   }
 
-  static streamTables(eventRef) {
-    const tablesQuery = query(collection(adb, 'tables'), where('eventRef', '==', eventRef), where('active', '==', true));
-    return tablesQuery.onSnapshot(snapshot => {
-      return snapshot.docs.map(doc => doc.data());
-    });
+   // Ajouter une table
+   static async addTable(eventId, data) {
+    try {
+      const eventRef = doc(adb, 'events', eventId);
+      const tableData = new TableModel({
+        name: data.tableName.charAt(0).toUpperCase() + data.tableName.slice(1),
+        price: parseInt(data.price, 10),
+        size: parseInt(data.guests, 10),
+        quantity: parseInt(data.tableNumber, 10),
+        eventRef: eventRef,
+        date: Timestamp.now(),
+      });
+
+      await addDoc(collection(adb, 'tables'), tableData.toPlainObject());
+    } catch (error) {
+      console.error("Erreur lors de l'ajout de la table:", error);
+      throw error;
+    }
   }
 
-  static async getTables(eventRef) {
+  // Récupérer les tables
+  static async fetchTables(eventId) {
     try {
-      const tablesQuery = query(collection(adb, 'tables'), where('eventRef', '==', eventRef), where('active', '==', true));
+      const tablesQuery = query(collection(adb, 'tables'), where('eventRef', '==', doc(adb, 'events', eventId)));
       const querySnapshot = await getDocs(tablesQuery);
-      return querySnapshot.docs.map(doc => doc.data());
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-      console.error("Error getting tables: ", error);
+      console.error("Erreur lors de la récupération des tables:", error);
+      throw error;
+    }
+  }
+
+  // Supprimer une table
+  static async deleteTable(tableId) {
+    try {
+      await deleteDoc(doc(adb, 'tables', tableId));
+    } catch (error) {
+      console.error("Erreur lors de la suppression de la table:", error);
+      throw error;
+    }
+  }
+
+  // Mettre à jour une table
+  static async updateTable(tableId, tableData) {
+    try {
+      await updateDoc(doc(adb, 'tables', tableId), {
+        name: tableData.name,
+        price: Number(tableData.price),
+        size: Number(tableData.size),
+        quantity: Number(tableData.quantity),
+      });
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de la table:", error);
       throw error;
     }
   }
@@ -405,12 +446,27 @@ class FirebaseService {
     });
   }
 
-  static streamBookingRequests(eventRef) {
-    const resaQuery = query(collection(adb, 'reservations'), where('eventRef', '==', eventRef), where('status', '==', 0), orderBy('created', 'asc'));
-    return resaQuery.onSnapshot(snapshot => {
-      return snapshot.docs.map(doc => doc.data());
-    });
+  
+  static streamBookingRequests(eventRef, callback) {
+    const resaQuery = query(
+      collection(adb, 'reservations'),
+      where('eventRef', '==', eventRef),
+      where('status', '==', 0), // 0 = PENDING
+      orderBy('created', 'asc')
+    );
+    return onSnapshot(resaQuery, callback);
   }
+
+
+   static streamSimpleEntries(eventRef, callback) {
+      const entriesQuery = query(
+        collection(adb, 'reservations'), 
+        where('eventRef', '==', eventRef),
+        where('tableRef', '==', null), 
+      );
+      return onSnapshot(entriesQuery, callback);
+    }
+    
 
   static async getUser(ref) {
     try {
@@ -435,5 +491,7 @@ class FirebaseService {
     }
   }
 }
+
+
 
 export default FirebaseService;

@@ -2,38 +2,23 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, getDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, query, where, deleteDoc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { Button, Box, CircularProgress, Typography, Divider, Container, useTheme, Tabs, Tab } from '@mui/material';
 import { useForm } from 'react-hook-form';
-import { Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import FirebaseService from '../../../../../app/firebase/firebaseService';
 import { adb, storagedb } from '../../../../firebase/firebaseconfigdb';
 import { slugify } from '../../../../../utils/slugify';
 import AddTableForm from '../../../../../views/events/tabs/tableTab';
 import EditEventForm from '../../../../../views/events/tabs/editTab';
-
-const Category2 = ({ eventId }) => {
-  return <AddTableForm eventId={eventId} />;
-};
-
-const Category3 = () => (
-  <Box>
-    <Typography variant='h6'>À faire</Typography>
-  </Box>
-);
-
-const Category4 = () => (
-  <Box>
-    <Typography variant='h6'>À faire</Typography>
-  </Box>
-);
+import BookingTab from '../../../../../views/events/tabs/bookingTab';
+import SimpleEntriesTab from '../../../../../views/events/tabs/simpleEntriesTab'; 
 
 const EventPage = () => {
   const theme = useTheme();
   const { slug } = useParams();
   const router = useRouter();
-  const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
+
+  const { control, setValue, reset, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       date: '',
@@ -52,6 +37,7 @@ const EventPage = () => {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedTab, setSelectedTab] = useState(0);
+  const [tables, setTables] = useState([]);
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp.seconds * 1000);
@@ -63,8 +49,70 @@ const EventPage = () => {
     return date.toTimeString().split(' ')[0].slice(0, 5);
   };
 
+  const fetchTables = async () => {
+    if (!eventId) {
+      console.error("eventId is null or undefined");
+      return;
+    }
+    setLoading(true);
+    try {
+      const eventDocRef = doc(adb, 'events', eventId);
+      const tablesQuery = query(collection(adb, 'tables'), where('eventRef', '==', eventDocRef));
+      const querySnapshot = await getDocs(tablesQuery);
+      const tablesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setTables(tablesData);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des tables:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTable = async (tableId) => {
+    try {
+      await deleteDoc(doc(adb, 'tables', tableId));
+      fetchTables();
+    } catch (error) {
+      console.error("Erreur lors de la suppression de la table:", error);
+    }
+  };
+
+  const handleSaveTable = async (tableId, tableData) => {
+    try {
+      await updateDoc(doc(adb, 'tables', tableId), {
+        name: tableData.name,
+        price: Number(tableData.price),
+        size: Number(tableData.size),
+        quantity: Number(tableData.quantity),
+      });
+      fetchTables();
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de la table:", error);
+    }
+  };
+
+  const addTable = async (data) => {
+    const eventRef = doc(adb, 'events', eventId);
+
+    const tableData = {
+      name: data.tableName.charAt(0).toUpperCase() + data.tableName.slice(1),
+      price: parseInt(data.price, 10),
+      size: parseInt(data.guests, 10),
+      quantity: parseInt(data.tableNumber, 10),
+      eventRef: eventRef,
+      date: Timestamp.now(),
+    };
+
+    try {
+      await addDoc(collection(adb, 'tables'), tableData);
+      fetchTables();
+    } catch (error) {
+      console.error("Erreur lors de l'ajout de la table:", error);
+    }
+  };
+
   const refreshData = async () => {
-    // Logique pour rafraîchir les données après l'ajout ou la modification
+    fetchTables();
   };
 
   useEffect(() => {
@@ -89,6 +137,7 @@ const EventPage = () => {
             if (eventData.pic) {
               setImagePreview(await getDownloadURL(ref(storagedb, eventData.pic)));
             }
+            fetchTables();
           } else {
             console.log("No such document!");
           }
@@ -102,14 +151,6 @@ const EventPage = () => {
       fetchEventDataBySlug();
     }
   }, [slug, setValue]);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -191,14 +232,16 @@ const EventPage = () => {
           <Tab label="Modifier l'évènement" />
           <Tab label="Ajouter une table" />
           <Tab label="Demandes" />
-          <Tab label="Synthèse" />
+          <Tab label="Entrées simples" /> 
+
         </Tabs>
-        
+
         {selectedTab === 0 && (
           <EditEventForm 
             control={control}
             handleSubmit={handleSubmit}
             setValue={setValue}
+            reset={reset}
             errors={errors}
             loading={loading}
             handleImageChange={handleImageChange}
@@ -209,9 +252,17 @@ const EventPage = () => {
             router={router}
           />
         )}
-        {selectedTab === 1 && <Category2 eventId={eventId} />}
-        {selectedTab === 2 && <Category3 />}
-        {selectedTab === 3 && <Category4 />}
+        {selectedTab === 1 && (
+          <AddTableForm
+            eventId={eventId}
+            tables={tables}
+            onDelete={handleDeleteTable}
+            onSave={handleSaveTable}
+            onAdd={addTable}
+          />
+        )}
+        {selectedTab === 2 && <BookingTab eventId={eventId} />}
+        {selectedTab === 3 && <SimpleEntriesTab eventId={eventId} />} 
       </Box>
     </Container>
   );

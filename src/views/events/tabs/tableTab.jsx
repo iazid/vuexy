@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, TextField, CircularProgress, Typography, IconButton } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { addDoc, collection, Timestamp, doc, query, where, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
-import { adb } from '../../../app/firebase/firebaseconfigdb';
 import { Save as SaveIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import TableModel from '../../../utils/TableModel';
+import FirebaseService from '../../../app/firebase/firebaseService';
+
+
 
 const AddTableForm = ({ eventId, refreshCb }) => {
   const [tables, setTables] = useState([]);
@@ -29,15 +29,13 @@ const AddTableForm = ({ eventId, refreshCb }) => {
     });
   };
 
-  const fetchTables = async () => {
+  const loadTables = async () => {
     setLoading(true);
     try {
-      const tablesQuery = query(collection(adb, 'tables'), where('eventRef', '==', doc(adb, 'events', eventId)));
-      const querySnapshot = await getDocs(tablesQuery);
-      const tablesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const tablesData = await FirebaseService.fetchTables(eventId);
       setTables(tablesData);
     } catch (error) {
-      console.error("Erreur lors de la récupération des tables:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -45,10 +43,10 @@ const AddTableForm = ({ eventId, refreshCb }) => {
 
   const handleDelete = async (tableId) => {
     try {
-      await deleteDoc(doc(adb, 'tables', tableId));
-      fetchTables();
+      await FirebaseService.deleteTable(tableId);
+      loadTables();
     } catch (error) {
-      console.error("Erreur lors de la suppression de la table:", error);
+      console.error(error);
     }
   };
 
@@ -61,43 +59,27 @@ const AddTableForm = ({ eventId, refreshCb }) => {
   const handleSave = async (tableId) => {
     const table = tables.find(t => t.id === tableId);
     try {
-      await updateDoc(doc(adb, 'tables', tableId), {
-        name: table.name,
-        price: Number(table.price),
-        size: Number(table.size),
-        quantity: Number(table.quantity),
-      });
-      fetchTables();
+      await FirebaseService.updateTable(tableId, table);
+      loadTables();
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de la table:", error);
+      console.error(error);
     }
   };
 
   useEffect(() => {
     if (eventId) {
-      fetchTables();
+      loadTables();
     }
   }, [eventId]);
 
   const onSubmit = async (data) => {
-    const eventRef = doc(adb, 'events', eventId);
-
-    const tableData = new TableModel({
-      name: data.tableName.charAt(0).toUpperCase() + data.tableName.slice(1),
-      price: parseInt(data.price, 10),
-      size: parseInt(data.guests, 10),
-      quantity: parseInt(data.tableNumber, 10),
-      eventRef: eventRef,
-      date: Timestamp.now(),
-    });
-
     try {
-      await addDoc(collection(adb, 'tables'), tableData.toPlainObject());
+      await FirebaseService.addTable(eventId, data);
       clearForm();
-      fetchTables();
+      loadTables();
       if (refreshCb) refreshCb(); // Appel à la fonction de rafraîchissement si fournie
     } catch (error) {
-      console.error("Erreur lors de l'ajout de la table:", error);
+      console.error(error);
     }
   };
 
@@ -165,6 +147,9 @@ const AddTableForm = ({ eventId, refreshCb }) => {
       <br />
       <br />
       <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
+        <Box mt={4}>
+          <Typography variant='h5'>Ajouter une table</Typography>
+        </Box>
         <Controller
           name='tableName'
           control={control}
