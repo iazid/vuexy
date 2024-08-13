@@ -135,25 +135,6 @@ class FirebaseService {
     }
   }
 
-  static async validateBooking({ bookingId, userId, token }) {
-    const url = `${baseUri}/validateBooking`;
-    try {
-      const response = await axios.post(url, {
-        bookingId,
-        userId
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error validating booking: ", error);
-      throw error;
-    }
-  }
-
   static async validateOrder({ orderId, userId, token }) {
     const url = `${baseUri}/validateOrder`;
     try {
@@ -173,6 +154,25 @@ class FirebaseService {
     }
   }
 
+  static async validateBooking({ bookingId, userId, token }) {
+    const url = `${baseUri}/validateBooking`;
+    try {
+      const response = await axios.post(url, {
+        bookingId,
+        userId
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error validating booking: ", error);
+      throw error;
+    }
+  }
+  
   static async refuseBooking({ bookingId, userId, token }) {
     const url = `${baseUri}/refuseBooking`;
     try {

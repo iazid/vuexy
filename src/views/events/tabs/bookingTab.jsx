@@ -3,16 +3,33 @@ import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableCo
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
+import DialogsAlert from '../../../components/DialogsAlert'; 
 import FirebaseService from '../../../app/firebase/firebaseService';
 import Reservation from '../../../utils/Reservation'; 
 import { doc, getDoc } from 'firebase/firestore';
-import { adb } from '../../../app/firebase/firebaseconfigdb';
+import { adb, auth } from '../../../app/firebase/firebaseconfigdb';
 
 const BookingTab = ({ eventId }) => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogAction, setDialogAction] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
 
   useEffect(() => {
+    const fetchTokenAndLog = async () => {
+      const user = auth.currentUser;
+  
+      if (user) {
+        const token = await user.getIdToken();
+        console.log("Token on page load:", token);
+      } else {
+        console.error("User is not authenticated");
+      }
+    };
+
+    fetchTokenAndLog();
+
     if (eventId) {
       const eventRef = doc(adb, 'events', eventId);
 
@@ -20,11 +37,9 @@ const BookingTab = ({ eventId }) => {
         const reservationsData = await Promise.all(
           snapshot.docs.map(async (doc) => {
             const reservation = Reservation.fromFirebase(doc);
-            console.log('Reservation fetched:', reservation); // Log the entire reservation object
             const userSnap = await getDoc(reservation.ownerRef);
             const userData = userSnap.exists() ? userSnap.data() : { name: "Inconnu", surname: "" };
 
-            // Récupération des informations de paiement
             let paymentProgress = '0/0€';
             if (reservation.ordersRef && reservation.ordersRef.length > 0) {
               const paymentDetails = await Promise.all(
@@ -53,10 +68,6 @@ const BookingTab = ({ eventId }) => {
   }, [eventId]);
 
   const getStatusLabel = (status) => {
-    console.log("Status number:", status); // Log the status number
-    if (status === undefined) {
-      console.error("Status is undefined. This could mean the status is not properly fetched or stored.");
-    }
     const statusMap = {
       0: 'En attente',
       1: 'Acceptée',
@@ -65,6 +76,71 @@ const BookingTab = ({ eventId }) => {
       4: 'À faire',
     };
     return statusMap[status] || 'Inconnu';
+  };
+
+  const handleOpenDialog = (action, bookingId) => {
+    setDialogAction(action);
+    setSelectedBookingId(bookingId);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleConfirmDialog = async () => {
+    if (dialogAction === 'validate') {
+      handleValidateBooking(selectedBookingId);
+    } else if (dialogAction === 'refuse') {
+      handleRefuseBooking(selectedBookingId);
+    }
+    setOpenDialog(false);
+  };
+
+  const handleValidateBooking = async (bookingId) => {
+    try {
+      const user = auth.currentUser;
+  
+      if (!user) {
+        console.error("User is not authenticated");
+        return;
+      }
+  
+      const token = await user.getIdToken();
+  
+      await FirebaseService.validateBooking({ bookingId, userId: user.uid, token });
+  
+      setReservations((prevReservations) =>
+        prevReservations.map((reservation) =>
+          reservation.resaRef.id === bookingId ? { ...reservation, status: 1 } : reservation
+        )
+      );
+    } catch (error) {
+      console.error("Error validating booking: ", error);
+    }
+  };
+
+  const handleRefuseBooking = async (bookingId) => {
+    try {
+      const user = auth.currentUser;
+  
+      if (!user) {
+        console.error("User is not authenticated");
+        return;
+      }
+  
+      const token = await user.getIdToken();
+  
+      await FirebaseService.refuseBooking({ bookingId, userId: user.uid, token });
+  
+      setReservations((prevReservations) =>
+        prevReservations.map((reservation) =>
+          reservation.resaRef.id === bookingId ? { ...reservation, status: 2 } : reservation
+        )
+      );
+    } catch (error) {
+      console.error("Error refusing booking: ", error);
+    }
   };
 
   if (loading) {
@@ -78,7 +154,6 @@ const BookingTab = ({ eventId }) => {
   return (
     <Box>
         <br />
-        <br />
       <Typography variant="h5" sx={{ mb: 2 }}>
         Demandes de Réservation
       </Typography>
@@ -91,7 +166,7 @@ const BookingTab = ({ eventId }) => {
               <TableCell>Nombre d'invités</TableCell>
               <TableCell>Date de la demande</TableCell>
               <TableCell>Avancement du paiement</TableCell>
-              <TableCell>Profil</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -102,12 +177,12 @@ const BookingTab = ({ eventId }) => {
                   <TableCell>{getStatusLabel(reservation.status)}</TableCell>
                   <TableCell>{reservation.guests.length}</TableCell>
                   <TableCell>{new Date(reservation.created).toLocaleDateString()}</TableCell>
-                  <TableCell>{reservation.paymentProgress}</TableCell> {/* Affiche alreadyPaid/total */}
+                  <TableCell>{reservation.paymentProgress}</TableCell>
                   <TableCell>
-                    <IconButton color="primary">
+                    <IconButton color="primary" onClick={() => handleOpenDialog('validate', reservation.resaRef.id)}>
                       <CheckIcon />
                     </IconButton>
-                    <IconButton color="error">
+                    <IconButton color="error" onClick={() => handleOpenDialog('refuse', reservation.resaRef.id)}>
                       <CloseIcon />
                     </IconButton>
                     <IconButton color="default">
@@ -126,6 +201,14 @@ const BookingTab = ({ eventId }) => {
           </TableBody>
         </Table>
       </TableContainer>
+      
+      <DialogsAlert
+        open={openDialog}
+        handleClose={handleCloseDialog}
+        handleConfirm={handleConfirmDialog}
+        title={dialogAction === 'validate' ? 'Confirmer la validation' : 'Confirmer le refus'}
+        description={dialogAction === 'validate' ? 'Voulez-vous vraiment valider cette réservation?' : 'Voulez-vous vraiment refuser cette réservation?'}
+      />
     </Box>
   );
 };
