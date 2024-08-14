@@ -1,6 +1,9 @@
+'use client'
+
 import React, { useEffect, useState } from 'react';
 import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, TableFooter } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { useRouter } from 'next/navigation'; // Importation du hook useRouter de next/navigation
 import FirebaseService from '../../../app/firebase/firebaseService';
 import { doc, getDoc } from 'firebase/firestore';
 import { adb } from '../../../app/firebase/firebaseconfigdb';
@@ -9,6 +12,7 @@ const SimpleEntriesTab = ({ eventId }) => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalAmount, setTotalAmount] = useState(0); 
+  const router = useRouter(); // Initialisation du hook useRouter de next/navigation
 
   useEffect(() => {
     if (eventId) {
@@ -40,6 +44,7 @@ const SimpleEntriesTab = ({ eventId }) => {
             return {
               ...entry,
               clientName: `${userData.name} ${userData.surname}`,
+              ownerUid: entry.ownerRef.id, // Stockez l'UID du propriétaire pour la redirection
             };
           })
         );
@@ -63,6 +68,13 @@ const SimpleEntriesTab = ({ eventId }) => {
     return statusMap[status] || 'Inconnu';
   };
 
+  const handleProfileClick = (name, surname, uid) => {
+    // Convertir le nom et prénom en slug
+    const slug = `${name}-${surname}`;
+    // Redirige vers la page de profil avec le slug et l'UID
+    router.push(`/profile/${slug}?uid=${uid}`);
+  };
+  
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -96,7 +108,10 @@ const SimpleEntriesTab = ({ eventId }) => {
                   <TableCell>{getStatusLabel(entry.status)}</TableCell>
                   <TableCell>{new Date(entry.created.seconds * 1000).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <IconButton color="default">
+                    <IconButton 
+                      color="default" 
+                      onClick={() => handleProfileClick(entry.clientName.split(" ")[0], entry.clientName.split(" ")[1], entry.ownerUid)}
+                    >
                       <ArrowForwardIcon />
                     </IconButton>
                   </TableCell>
