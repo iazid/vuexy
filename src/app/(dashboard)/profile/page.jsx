@@ -1,94 +1,105 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography, Avatar, Card, CardContent } from '@mui/material';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, adb } from '../../../app/firebase/firebaseconfigdb';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { Card, CardHeader, Typography, Chip, IconButton, TablePagination, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box } from '@mui/material';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { useRouter } from 'next/navigation';  
+import { adb } from '../../../app/firebase/firebaseconfigdb';
 
-const UserProfile = () => {
-  const [userData, setUserData] = useState(null);
+const UserList = () => {
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const user = auth.currentUser;
-
-      if (!user) {
-        console.error("User is not authenticated");
-        return;
-      }
-
-      console.log("Current user UID:", user.uid); // Affiche l'UID de l'utilisateur courant
-
+    const fetchUsers = async () => {
       try {
-        const userRef = doc(adb, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          setUserData(userSnap.data());
-        } else {
-          console.error("No such user!");
-        }
+        const querySnapshot = await getDocs(collection(adb, 'users'));
+        const userList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setUsers(userList);
+        setLoading(false);
       } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
+        console.error('Erreur lors de la récupération des utilisateurs:', error);
         setLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchUsers();
   }, []);
+
+  const handleProfileClick = (name, surname, uid) => {
+    const slug = `${name}-${surname}`;
+    router.push(`/profile/${slug}?uid=${uid}`);
+  };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Typography variant="h6">User data could not be loaded.</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <Typography variant="h6">Chargement des utilisateurs...</Typography>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 600, margin: 'auto', padding: 3 }}>
-      <Card>
-        <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Avatar 
-              alt="User Profile Picture" 
-              src={userData.profilePictureUrl || "/default-profile.png"} 
-              sx={{ width: 120, height: 120 }}
-            />
-            <Typography variant="h5" sx={{ marginTop: 2 }}>
-              {userData.name || "Nom inconnu"}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              {userData.email || "Email non disponible"}
-            </Typography>
-          </Box>
-          <Box sx={{ marginTop: 4 }}>
-            <Typography variant="h6" sx={{ marginBottom: 2 }}>Identité</Typography>
-            <Typography variant="body1"><strong>Date de naissance:</strong> {userData.dateOfBirth || "Non disponible"}</Typography>
-            <Typography variant="body1"><strong>Genre:</strong> {userData.gender || "Non spécifié"}</Typography>
-            <Typography variant="body1"><strong>Profil:</strong> {userData.profileStatus || "Non spécifié"}</Typography>
-            <Typography variant="body1"><strong>Pièce d'identité:</strong> {userData.identityStatus || "Non spécifié"}</Typography>
-          </Box>
-          <Box sx={{ marginTop: 4 }}>
-            <Typography variant="h6" sx={{ marginBottom: 2 }}>Coordonnées</Typography>
-            <Typography variant="body1"><strong>Adresse email:</strong> {userData.email || "Non disponible"}</Typography>
-            <Typography variant="body1"><strong>Numéro de téléphone:</strong> {userData.phoneNumber || "Non disponible"}</Typography>
-            <Typography variant="body1"><strong>Genre:</strong> {userData.gender || "Non spécifié"}</Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+    <Card>
+      <CardHeader title="Liste des utilisateurs" />
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ pl: 6}}>Nom</TableCell>
+              <TableCell sx={{ pl: 4 }}>Email</TableCell>
+              <TableCell sx={{ pl: 4 }}>Statut</TableCell>
+              <TableCell sx={{ pl: 4 }}>Profil</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {users.length > 0 ? (
+              users.map((user, index) => (
+                <TableRow key={index}>
+                  <TableCell sx={{ pl: 6 }}>{`${user.name} ${user.surname}`}</TableCell>
+                  <TableCell sx={{ pl: 4 }}>{user.email || 'Non disponible'}</TableCell>
+                  <TableCell sx={{ pl: 4 }}>
+                    <Chip
+                      label={user.isVerified ? 'Vérifié' : 'Non vérifié'}
+                      size="small"
+                      color={user.isVerified ? 'success' : 'default'}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ pl: 4 }}>
+                    <IconButton 
+                      color="default" 
+                      onClick={() => handleProfileClick(user.name, user.surname, user.id)}
+                    >
+                      <ArrowForwardIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} sx={{ pl: 4 }}>
+                  <Typography variant="body1">Aucun utilisateur trouvé.</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        component="div"
+        count={users.length}
+        rowsPerPage={10}
+        page={0}
+        onPageChange={() => {}}
+        onRowsPerPageChange={() => {}}
+      />
+    </Card>
   );
 };
 
-export default UserProfile;
+export default UserList;

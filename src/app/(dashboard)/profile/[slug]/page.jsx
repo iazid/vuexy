@@ -10,10 +10,10 @@ const UserViewTab = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simuler un temps de chargement
+    
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 2000); // Remplacez par le vrai temps de chargement si nécessaire
+    }, 2000); 
 
     return () => clearTimeout(timer);
   }, []);
@@ -29,7 +29,7 @@ const UserViewTab = () => {
   return (
     <Grid container spacing={6}>
       <Grid item xs={12} lg={4} md={5}>
-        <UserLeftOverview />
+        <UserLeftOverview setLoading={setLoading} />
       </Grid>
       <Grid item xs={12} lg={8} md={7}>
         <UserRight />

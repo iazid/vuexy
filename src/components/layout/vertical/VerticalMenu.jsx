@@ -69,6 +69,9 @@ const VerticalMenu = ({ scrollMenu }) => {
         <MenuItem href='/events/eventpage' icon={<i className='tabler-star' />}>
           Evenements
         </MenuItem>
+        <MenuItem href='/profile' icon={<i className='tabler-user-filled ' />}>
+          Utilisateurs
+        </MenuItem>
         <SubMenu label='Produits' icon={<i className='tabler-bottle' />}>
           <MenuItem href='/productTypes' >Catégories de Produits</MenuItem>
           <MenuItem href='/products'>Liste de Produits</MenuItem>

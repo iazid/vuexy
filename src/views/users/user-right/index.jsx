@@ -24,17 +24,17 @@ const UserRight = () => {
   return (
     <TabContext value={activeTab}>
       <Grid container spacing={6}>
-        <Grid item xs={12}>
+        <Grid item xs={12} lg={12}> {/* Utilisez lg={12} pour occuper toute la largeur */}
           <CustomTabList onChange={handleChange} variant='scrollable' pill='true'>
             <Tab icon={<i className='tabler-calendar' />} value='reservations' label='Réservations' iconPosition='start' />
             <Tab icon={<i className='tabler-shopping-cart' />} value='commandes' label='Commandes' iconPosition='start' />
           </CustomTabList>
         </Grid>
-        <Grid item xs={12} style={{ display: 'flex', justifyContent: 'center' }}>
-          <TabPanel value='reservations' style={{ width: '100%', maxWidth: '800px', height: '100%' }}>
+        <Grid item xs={12} lg={12} style={{ display: 'flex', justifyContent: 'center' }}> {/* Occupe toute la largeur */}
+          <TabPanel value='reservations' style={{ width: '100%', height: '100%' }}>
             <UserTab />
           </TabPanel>
-          <TabPanel value='commandes' style={{ width: '100%', maxWidth: '800px', height: '100%' }}>
+          <TabPanel value='commandes' style={{ width: '100%', height: '100%' }}>
             <UserTab />
           </TabPanel>
         </Grid>

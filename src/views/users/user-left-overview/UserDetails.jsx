@@ -4,15 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { Card, CardContent, Typography, Chip, Divider, Avatar, CircularProgress } from '@mui/material';
+import { Card, CardContent, Typography, Chip, Divider, Avatar } from '@mui/material';
 import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
 import UserData from '../../../utils/UserData';
 
-const UserDetails = () => {
+const UserDetails = ({ setLoading }) => {
   const searchParams = useSearchParams(); 
   const [uid, setUid] = useState(null); 
   const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
 
   useEffect(() => {
@@ -26,6 +25,7 @@ const UserDetails = () => {
     const fetchUserData = async () => {
       if (!uid) {
         console.log('Aucun UID disponible pour l’instant.');
+        setLoading(false);
         return;
       }
 
@@ -48,16 +48,12 @@ const UserDetails = () => {
       } catch (error) {
         console.error("Erreur lors de la récupération des données de l'utilisateur :", error);
       } finally {
-        setLoading(false);
+        setLoading(false);  // Une fois les données chargées, on arrête le chargement
       }
     };
 
     fetchUserData();
   }, [uid]);
-
-  if (loading) {
-    return <CircularProgress />;
-  }
 
   if (!userData) {
     return <Typography variant="h6">Les données de l'utilisateur n'ont pas pu être chargées.</Typography>;
