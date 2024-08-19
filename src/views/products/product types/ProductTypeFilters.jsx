@@ -1,5 +1,5 @@
 // Importations React
-import { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 
 // Importations MUI
 import CardContent from '@mui/material/CardContent';
@@ -9,7 +9,7 @@ import MenuItem from '@mui/material/MenuItem';
 // Importations de composants
 import CustomTextField from '@core/components/mui/TextField';
 
-const ProductFilters = ({ setData, productData }) => {
+const ProductFilters = React.memo(({ setData, productData }) => {
   // États
   const [productType, setProductType] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -63,6 +63,6 @@ const ProductFilters = ({ setData, productData }) => {
       </Grid>
     </CardContent>
   );
-};
+});
 
 export default ProductFilters;

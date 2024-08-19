@@ -7,23 +7,23 @@ import ProductTypeListTable from '../../../views/products/product types/ProductT
 import AddProductTypeDrawer from '../../../views/products/product types/AddProductTypeDrawer';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
-import { Button } from '@mui/material';
+
 
 const ProductTypeListPage = () => {
   const dispatch = useDispatch();
-  const { productTypes, status, error } = useSelector(state => state.productTypes);
+  const productTypes = useSelector(state => state.productTypes.productTypes);
+  const status = useSelector(state => state.productTypes.status);
+  const error = useSelector(state => state.productTypes.error);
   const [addProductTypeOpen, setAddProductTypeOpen] = useState(false);
   const [localProductTypes, setLocalProductTypes] = useState([]);
 
   useEffect(() => {
     if (status === 'idle') {
       dispatch(fetchProductTypes());
+    } else if (status === 'succeeded') {
+      setLocalProductTypes(productTypes);
     }
-  }, [status, dispatch]);
-
-  useEffect(() => {
-    setLocalProductTypes(productTypes);
-  }, [productTypes]);
+  }, [status, dispatch, productTypes]);
 
   const productTypesWithCount = localProductTypes.map(type => ({
     ...type,

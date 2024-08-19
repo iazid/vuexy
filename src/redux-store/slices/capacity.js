@@ -1,28 +1,24 @@
+// redux-store/slices/capacitySlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { collection, getDocs } from 'firebase/firestore';
 import { adb } from '../../app/firebase/firebaseconfigdb';
 
-const initialState = {
-  capacities: [],
-  status: 'idle',
-  error: null,
-};
-
 export const fetchCapacities = createAsyncThunk('capacities/fetchCapacities', async () => {
-  const capacitiesCollectionRef = collection(adb, 'capacities');
-  const capacitiesData = await getDocs(capacitiesCollectionRef);
-  const capacitiesList = capacitiesData.docs.map(doc => ({
+  const capacitiesSnapshot = await getDocs(collection(adb, 'capacities'));
+  const capacitiesData = capacitiesSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   }));
-
-  return capacitiesList;
+  return capacitiesData;
 });
 
 const capacitySlice = createSlice({
   name: 'capacities',
-  initialState: initialState,
-  reducers: {},
+  initialState: {
+    capacities: [],
+    status: 'idle',
+    error: null,
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchCapacities.pending, (state) => {
