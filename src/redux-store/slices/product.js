@@ -1,78 +1,106 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
+import { collection, doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { ref, uploadBytes } from 'firebase/storage';
 import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
-import ProductFactory from '../../utils/ProductFactory';
+import Product from '../../utils/Product';
+import Capacity from '../../utils/Capacity';
 
-const initialState = {
-  products: [],
-  status: 'idle',
-  error: null,
-};
+// Action asynchrone pour ajouter un produit
+export const addProduct = createAsyncThunk(
+  'products/addProduct',
+  async ({ productData, image }, { rejectWithValue }) => {
+    try {
+      // Téléchargement de l'image
+      const newProductRef = doc(collection(adb, 'products'));
+      const productImagePath = `products/${newProductRef.id}/pic`;
+      const productImageRef = ref(storagedb, productImagePath);
 
-export const fetchProducts = createAsyncThunk('products/fetchProducts', async () => {
-  const productTypesCollectionRef = collection(adb, 'productTypes');
-  const productTypesSnapshot = await getDocs(productTypesCollectionRef);
+      await uploadBytes(productImageRef, image);
 
-  const allProductsPromises = productTypesSnapshot.docs.flatMap(type =>
-    type.data().products?.map(async productRef => {
-      const productDoc = await getDoc(doc(adb, productRef.path));
-      if (productDoc.exists()) {
-        let product = ProductFactory(productDoc);
-        const capacitiesRefs = productDoc.data().capacities || [];
-        const numberOfCapacities = capacitiesRefs.length;
-
-        product = {
-          ...product,
-          type: type.data().name,
-          numberOfCapacities: numberOfCapacities,
-        };
-
-        const imageRef = ref(storagedb, `products/${productDoc.id}/pic`);
-        product.pic = await getDownloadURL(imageRef).catch(() => `products/${productDoc.id}/pic`);
-        return product;
+      // Création du produit avec le chemin de l'image
+      const selectedType = productData.productTypes.find(type => type.name === productData.type);
+      if (!selectedType) {
+        throw new Error('Type de produit non valide.');
       }
-      return null;
-    }) || []
-  );
 
-  const allProducts = (await Promise.all(allProductsPromises)).filter(product => product !== null);
-  return allProducts;
-});
+      const newProduct = new Product({
+        productRef: newProductRef,
+        name: productData.name,
+        description: productData.description,
+        pic: productImagePath,
+        productType: doc(adb, `productTypes/${selectedType.id}`),
+        date: new Date(),
+        visible: true,
+        capacities: []
+      });
+
+      await setDoc(newProductRef, newProduct.toMap());
+
+      // Création des capacités associées
+      const capacitiesRefs = await Promise.all(
+        productData.capacities.map(async (cap) => {
+          const convertedCapacity = cap.unit === 'L' ? cap.capacity * 100 : cap.capacity;
+          const capRef = doc(collection(adb, 'capacities'));
+          const newCapacity = new Capacity({
+            capacityRef: capRef,
+            productTypeRef: newProduct.productType,
+            productRef: newProductRef,
+            capacity: convertedCapacity,
+            unity: 'centilitre',
+            price: parseFloat(cap.price),
+            quantity: parseInt(cap.quantity, 10)
+          });
+          await newCapacity.save();
+          newProduct.addCapacity(newCapacity);
+          return capRef;
+        })
+      );
+
+      await newProduct.save();
+
+      // Mise à jour du type de produit
+      const productTypeRef = doc(adb, `productTypes/${selectedType.id}`);
+      await updateDoc(productTypeRef, {
+        products: arrayUnion(newProductRef)
+      });
+
+      return {
+        ...newProduct.toMap(),
+        id: newProductRef.id,
+        type: selectedType.name,
+        numberOfCapacities: capacitiesRefs.length,
+      };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 
 const productSlice = createSlice({
   name: 'products',
-  initialState,
-  reducers: {
-    addProduct(state, action) {
-      state.products.push(action.payload);
-    },
-    updateProduct(state, action) {
-      const index = state.products.findIndex(product => product.id === action.payload.id);
-      if (index !== -1) {
-        state.products[index] = action.payload;
-      }
-    },
-    removeProduct(state, action) {
-      state.products = state.products.filter(product => product.id !== action.payload.id);
-    },
+  initialState: {
+    products: [],
+    loading: false,
+    error: null,
+    currentProduct: null,
   },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchProducts.pending, (state) => {
-        state.status = 'loading';
+      .addCase(addProduct.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchProducts.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.products = action.payload;
+      .addCase(addProduct.fulfilled, (state, action) => {
+        state.loading = false;
+        state.products.push(action.payload);
+        state.currentProduct = action.payload;
       })
-      .addCase(fetchProducts.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.error.message;
+      .addCase(addProduct.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
-
-export const { addProduct, updateProduct, removeProduct } = productSlice.actions;
 
 export default productSlice.reducer;

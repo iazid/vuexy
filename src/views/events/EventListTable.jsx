@@ -29,7 +29,7 @@ import CustomTextField from '@core/components/mui/TextField';
 import AddEventDrawer from './AddEventDrawer';
 import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
 import EventFactory from '../../utils/EventFactory';
-import { slugify } from '../../utils/slugify'; // Importez votre fonction slugify
+import { slugify } from '../../utils/slugify'; 
 
 const Icon = styled('i')({});
 

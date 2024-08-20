@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid, Avatar, CircularProgress } from '@mui/material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { collection, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes } from 'firebase/storage';
+import { useDispatch, useSelector } from 'react-redux';
+import { addProduct } from '../../../redux-store/slices/product';
+import { addCapacity } from '../../../redux-store/slices/capacity';
+import { fetchProductTypes } from '../../../redux-store/slices/productType'; 
 import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
 import Capacity from '../../../utils/Capacity';
 import Product from '../../../utils/Product';
@@ -14,7 +18,7 @@ const initialData = {
   capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'centilitre' }]
 };
 
-const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFilteredProducts, currentFilters, onProductAdded }) => {
+const AddProductDrawer = ({ open, handleClose, setData, setFilteredProducts, currentFilters, onProductAdded }) => {
   const { control, reset, handleSubmit, formState: { errors }, setValue } = useForm({
     defaultValues: initialData
   });
@@ -28,9 +32,18 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const dispatch = useDispatch();
+  const { loading: reduxLoading, error } = useSelector((state) => state.products);
+  const { productTypes, loading: productTypesLoading } = useSelector((state) => state.productTypes);
+
   useEffect(() => {
     reset(initialData);
   }, [open, reset]);
+
+  useEffect(() => {
+    // Charger les types de produits via Redux
+    dispatch(fetchProductTypes());
+  }, [dispatch]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -42,9 +55,9 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
 
   const convertUnitToCentilitres = (capacity, unit) => {
     if (unit === 'L') {
-      return capacity * 100; 
+      return capacity * 100;
     }
-    return capacity; 
+    return capacity;
   };
 
   const onSubmit = async (data) => {
@@ -66,7 +79,7 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
         productRef: newProductRef,
         name: data.name,
         description: data.description,
-        pic: '', 
+        pic: '',
         productType: doc(adb, `productTypes/${selectedType.id}`),
         date: new Date(),
         visible: true,
@@ -92,7 +105,21 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
           price: parseFloat(cap.price),
           quantity: parseInt(cap.quantity, 10)
         });
+
+        // Appel Firebase pour sauvegarder la capacité
         await newCapacity.save();
+
+        // Appel Redux pour ajouter la capacité dans l'état global
+        dispatch(addCapacity({
+          productRef: newProductRef,
+          capacityData: {
+            productTypeRef: newProduct.productType,
+            capacity: convertedCapacity,
+            price: cap.price,
+            quantity: cap.quantity
+          }
+        }));
+
         newProduct.addCapacity(newCapacity);
         return capRef;
       }));
@@ -103,6 +130,9 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
       await updateDoc(productTypeRef, {
         products: arrayUnion(newProductRef)
       });
+
+      // Appel Redux pour ajouter le produit dans l'état global
+      dispatch(addProduct({ productData: data, image }));
 
       const newProductData = {
         ...newProduct.toMap(),
@@ -305,9 +335,10 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
           </Button>
         </Box>
         <Box display="flex" justifyContent="space-between">
-          <Button variant='contained' type='submit' disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : 'Terminer'}
+          <Button variant='contained' type='submit' disabled={loading || reduxLoading}>
+            {(loading || reduxLoading) ? <CircularProgress size={24} /> : 'Terminer'}
           </Button>
+          {error && <Typography color="error">{error}</Typography>}
           <Button variant='tonal' color='error' type='reset' onClick={handleReset}>
             Annuler
           </Button>

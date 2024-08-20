@@ -3,7 +3,6 @@ import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
 import { adb } from '../../app/firebase/firebaseconfigdb';
 import ProductTypeFactory from '../../utils/ProductTypeFactory';
 
-// État initial fusionné
 const initialState = {
   productTypes: [],
   status: 'idle',
@@ -11,27 +10,30 @@ const initialState = {
   error: null,
 };
 
-// Thunk fusionné pour récupérer les types de produits
-export const fetchProductTypes = createAsyncThunk('productTypes/fetchProductTypes', async (_, { rejectWithValue }) => {
-  try {
-    const productTypesCollectionRef = collection(adb, 'productTypes');
-    const productTypesData = await getDocs(productTypesCollectionRef);
-    const productTypesList = await Promise.all(productTypesData.docs.map(doc => {
-      try {
-        return ProductTypeFactory(doc);
-      } catch (error) {
-        console.error("Error fetching product type data:", error);
-        return null;
-      }
-    }));
+export const fetchProductTypes = createAsyncThunk(
+  'productTypes/fetchProductTypes',
+  async (_, { rejectWithValue }) => {
+    try {
+      const productTypesCollectionRef = collection(adb, 'productTypes');
+      const productTypesData = await getDocs(productTypesCollectionRef);
+      const productTypesList = await Promise.all(
+        productTypesData.docs.map(doc => {
+          try {
+            return ProductTypeFactory(doc);
+          } catch (error) {
+            console.error('Error fetching product type data:', error);
+            return null;
+          }
+        })
+      );
 
-    return productTypesList.filter(productType => productType);
-  } catch (error) {
-    return rejectWithValue(error.message);
+      return productTypesList.filter(productType => productType);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
-});
+);
 
-// Thunk pour ajouter un type de produit
 export const addProductType = createAsyncThunk(
   'productTypes/addProductType',
   async (newType, { rejectWithValue }) => {
@@ -44,7 +46,6 @@ export const addProductType = createAsyncThunk(
   }
 );
 
-// Thunk pour mettre à jour un type de produit existant
 export const updateProductType = createAsyncThunk(
   'productTypes/updateProductType',
   async ({ id, updatedData }, { rejectWithValue }) => {
@@ -64,7 +65,6 @@ const productTypeSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Récupération des types de produits (fusionnée)
       .addCase(fetchProductTypes.pending, (state) => {
         state.status = 'loading';
         state.loading = true;
@@ -80,8 +80,6 @@ const productTypeSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Ajout d'un type de produit
       .addCase(addProductType.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -94,8 +92,6 @@ const productTypeSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Mise à jour d'un type de produit
       .addCase(updateProductType.pending, (state) => {
         state.loading = true;
         state.error = null;
