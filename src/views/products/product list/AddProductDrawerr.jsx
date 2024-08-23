@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Drawer, IconButton, MenuItem, Typography, Divider, Box, TextField, FormControl, InputLabel, Select, Grid, Avatar, CircularProgress } from '@mui/material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { collection, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
-import Capacity from '../../../utils/Capacity';
-import Product from '../../../utils/Product';
+import { useDispatch, useSelector } from 'react-redux';
+import { addProduct, selectAddProductStatus, selectAddProductError } from '../../../redux-store/slices/addProductSlice';
 
 const initialData = {
   name: '',
@@ -14,7 +11,7 @@ const initialData = {
   capacities: [{ price: 0, quantity: 0, capacity: 0, unit: 'centilitre' }]
 };
 
-const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFilteredProducts, currentFilters, onProductAdded }) => {
+const AddProductDrawer = React.memo ( ({ open, handleClose, setData, productTypes, setFilteredProducts, currentFilters, onProductAdded }) => {
   const { control, reset, handleSubmit, formState: { errors }, setValue } = useForm({
     defaultValues: initialData
   });
@@ -26,7 +23,10 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+
+  const loading = useSelector(selectAddProductStatus) === 'loading';
+  const error = useSelector(selectAddProductError);
 
   useEffect(() => {
     reset(initialData);
@@ -40,88 +40,25 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
     }
   };
 
-  const convertUnitToCentilitres = (capacity, unit) => {
-    if (unit === 'L') {
-      return capacity * 100; 
-    }
-    return capacity; 
-  };
-
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     if (!image) {
       alert('Veuillez sélectionner une image.');
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const selectedType = productTypes.find(type => type.name === data.type);
-      if (!selectedType) {
-        throw new Error('Type de produit non valide.');
-      }
-
-      const newProductRef = doc(collection(adb, 'products'));
-      const newProduct = new Product({
-        productRef: newProductRef,
-        name: data.name,
-        description: data.description,
-        pic: '', 
-        productType: doc(adb, `productTypes/${selectedType.id}`),
-        date: new Date(),
-        visible: true,
-        capacities: []
+    dispatch(addProduct({ data, image, productTypes }))
+      .unwrap()
+      .then((newProductData) => {
+        onProductAdded(newProductData);
+        handleClose();
+        reset(initialData);
+        setImage(null);
+        setImagePreview(null);
+      })
+      .catch((error) => {
+        console.error('Erreur lors de l\'ajout du produit:', error);
+        alert(`Erreur lors de l'ajout du produit: ${error}`);
       });
-
-      await setDoc(newProductRef, newProduct.toMap());
-
-      const productImagePath = `products/${newProductRef.id}/pic`;
-      const productImageRef = ref(storagedb, productImagePath);
-      await uploadBytes(productImageRef, image);
-      newProduct.pic = productImagePath;
-
-      const capacitiesRefs = await Promise.all(data.capacities.map(async (cap) => {
-        const convertedCapacity = convertUnitToCentilitres(cap.capacity, cap.unit);
-        const capRef = doc(collection(adb, 'capacities'));
-        const newCapacity = new Capacity({
-          capacityRef: capRef,
-          productTypeRef: newProduct.productType,
-          productRef: newProductRef,
-          capacity: convertedCapacity,
-          unity: 'centilitre',
-          price: parseFloat(cap.price),
-          quantity: parseInt(cap.quantity, 10)
-        });
-        await newCapacity.save();
-        newProduct.addCapacity(newCapacity);
-        return capRef;
-      }));
-
-      await newProduct.save();
-
-      const productTypeRef = doc(adb, `productTypes/${selectedType.id}`);
-      await updateDoc(productTypeRef, {
-        products: arrayUnion(newProductRef)
-      });
-
-      const newProductData = {
-        ...newProduct.toMap(),
-        id: newProductRef.id,
-        type: selectedType.name,
-        numberOfCapacities: capacitiesRefs.length,
-      };
-      onProductAdded(newProductData);
-
-      handleClose();
-      reset(initialData);
-      setImage(null);
-      setImagePreview(null);
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout du produit:', error);
-      alert(`Erreur lors de l'ajout du produit: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleReset = () => {
@@ -315,6 +252,6 @@ const AddProductDrawer = ({ open, handleClose, setData, productTypes, setFiltere
       </Box>
     </Drawer>
   );
-};
+});
 
 export default AddProductDrawer;

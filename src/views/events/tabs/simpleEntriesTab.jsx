@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, TableFooter } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { useRouter } from 'next/navigation'; // Importation du hook useRouter de next/navigation
+import { useRouter } from 'next/navigation'; 
 import FirebaseService from '../../../app/firebase/firebaseService';
 import { doc, getDoc } from 'firebase/firestore';
 import { adb } from '../../../app/firebase/firebaseconfigdb';
@@ -12,7 +12,7 @@ const SimpleEntriesTab = ({ eventId }) => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalAmount, setTotalAmount] = useState(0); 
-  const router = useRouter(); // Initialisation du hook useRouter de next/navigation
+  const router = useRouter(); 
 
   useEffect(() => {
     if (eventId) {

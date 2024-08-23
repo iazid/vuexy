@@ -1,95 +1,48 @@
 'use client'
-
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProductTypes, selectProductTypes, selectProductTypesLoading, selectProductTypesError } from '../../../redux-store/slices/productTypesSlice';
+import { fetchCapacities, selectCapacities, selectCapacitiesLoading, selectCapacitiesError } from '../../../redux-store/slices/capacitiesSlice';
+import { fetchProducts, selectProducts, selectProductsLoading, selectProductsError, addProduct } from '../../../redux-store/slices/productsSlice';
 import ProductListTable from '../../../views/products/product list/ProductListTable';
 import ProductFilters from '../../../views/products/product list/ProductFilters';
 import AddProductDrawer from '../../../views/products/product list/AddProductDrawerr';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
-import { adb, storagedb } from '../../firebase/firebaseconfigdb';
-import ProductFactory from '../../../utils/ProductFactory';
 
 const ProductsPage = () => {
   const searchParams = useSearchParams();
   const initialType = searchParams.get('type') || '';
 
-  const [productTypes, setProductTypes] = useState([]);
-  const [capacities, setCapacities] = useState([]);
-  const [products, setProducts] = useState([]);
+  const dispatch = useDispatch();
+
+  const productTypes = useSelector(selectProductTypes);
+  const loadingProductTypes = useSelector(selectProductTypesLoading);
+  const errorProductTypes = useSelector(selectProductTypesError);
+
+  const capacities = useSelector(selectCapacities);
+  const loadingCapacities = useSelector(selectCapacitiesLoading);
+  const errorCapacities = useSelector(selectCapacitiesError);
+
+  const products = useSelector(selectProducts);
+  const loadingProducts = useSelector(selectProductsLoading);
+  const errorProducts = useSelector(selectProductsError);
+
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [addProductOpen, setAddProductOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [currentFilters, setCurrentFilters] = useState({ selectedType: initialType });
 
   useEffect(() => {
-    const fetchProductTypes = async () => {
-      try {
-        const productTypesSnapshot = await getDocs(collection(adb, 'productTypes'));
-        const productTypesData = productTypesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setProductTypes(productTypesData);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-
-    const fetchCapacities = async () => {
-      try {
-        const capacitiesSnapshot = await getDocs(collection(adb, 'capacities'));
-        const capacitiesData = capacitiesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setCapacities(capacitiesData);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-
-    fetchProductTypes();
-    fetchCapacities();
-  }, []);
+    dispatch(fetchProductTypes());
+    dispatch(fetchCapacities());
+  }, [dispatch]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      const allProductsPromises = productTypes.flatMap(type =>
-        type.products?.map(async productRef => {
-          const productDoc = await getDoc(doc(adb, productRef.path));
-          if (productDoc.exists()) {
-            let product = ProductFactory(productDoc);
-            const capacitiesRefs = productDoc.data().capacities || [];
-            const numberOfCapacities = capacitiesRefs.length;
-
-            product = {
-              ...product,
-              type: type.name,
-              numberOfCapacities: numberOfCapacities
-            };
-
-            const imageRef = ref(storagedb, `products/${productDoc.id}/pic`);
-            product.pic = await getDownloadURL(imageRef).catch(() => `products/${productDoc.id}/pic`);
-            return product;
-          }
-          return null;
-        }) || []
-      );
-
-      const allProducts = (await Promise.all(allProductsPromises)).filter(product => product !== null);
-      setProducts(allProducts);
-      setFilteredProducts(allProducts);
-      setLoading(false);
-    };
-
     if (productTypes.length > 0) {
-      fetchProducts();
+      dispatch(fetchProducts(productTypes));
     }
-  }, [productTypes]);
+  }, [productTypes, dispatch]);
 
   useEffect(() => {
     let filteredData = [...products];
@@ -102,10 +55,9 @@ const ProductsPage = () => {
   }, [currentFilters, products]);
 
   const handleProductAdded = (newProductData) => {
-    const updatedProducts = [...products, newProductData];
-    setProducts(updatedProducts);
+    dispatch(addProduct(newProductData));
 
-    let filteredData = updatedProducts;
+    let filteredData = [...products, newProductData];
     if (currentFilters.selectedType) {
       filteredData = filteredData.filter(product => product.type === currentFilters.selectedType);
     }
@@ -113,7 +65,7 @@ const ProductsPage = () => {
     setFilteredProducts(filteredData);
   };
 
-  if (loading) {
+  if (loadingProductTypes || loadingCapacities || loadingProducts) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -121,8 +73,8 @@ const ProductsPage = () => {
     );
   }
 
-  if (error) {
-    return <div>Error: {error}</div>;
+  if (errorProductTypes || errorCapacities || errorProducts) {
+    return <div>Error: {errorProductTypes || errorCapacities || errorProducts}</div>;
   }
 
   return (

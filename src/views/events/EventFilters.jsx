@@ -5,11 +5,12 @@ import { useState, useEffect } from 'react';
 import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
+import React from 'react'
 
 // Component Imports
 import CustomTextField from '@core/components/mui/TextField';
 
-const EventFilters = ({ setData, eventData }) => {
+const EventFilters = React.memo(({ setData, eventData }) => {
   // States
   const [eventType, setEventType] = useState('');
   const [location, setLocation] = useState('');
@@ -56,6 +57,6 @@ const EventFilters = ({ setData, eventData }) => {
       </Grid>
     </CardContent>
   );
-};
+});
 
 export default EventFilters;

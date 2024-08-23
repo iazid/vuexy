@@ -34,7 +34,7 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   return <CustomTextField {...props} value={value} onChange={e => setValue(e.target.value)} />;
 };
 
-const ProductListTable = ({ productData, setAddProductOpen }) => {
+const ProductListTable = React.memo (({ productData, setAddProductOpen }) => {
   const columnHelper = createColumnHelper();
   const [globalFilter, setGlobalFilter] = useState('');
 
@@ -146,6 +146,6 @@ const ProductListTable = ({ productData, setAddProductOpen }) => {
       />
     </Card>
   );
-};
+});
 
 export default ProductListTable;

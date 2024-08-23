@@ -16,7 +16,7 @@ const initialData = {
 
 const productTypeOptions = ['Boisson', 'Soft', 'Nourriture', 'Goodies', 'Matériel'];
 
-const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
+const AddProductTypeDrawer = React.memo (({ open, handleClose, setData }) => {
   const dispatch = useDispatch();
 
   const {
@@ -132,6 +132,6 @@ const AddProductTypeDrawer = ({ open, handleClose, setData }) => {
       </div>
     </Drawer>
   );
-};
+});
 
 export default AddProductTypeDrawer;

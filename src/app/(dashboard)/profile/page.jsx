@@ -1,48 +1,44 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, Typography, Chip, IconButton, TablePagination, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useRouter } from 'next/navigation';  
-import { adb } from '../../../app/firebase/firebaseconfigdb';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchUsers, selectAllUsers, getUsersStatus, getUsersError } from '../../../redux-store/slices/userSlice';
 
 const UserList = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const users = useSelector(selectAllUsers);
+  const usersStatus = useSelector(getUsersStatus);
+  const error = useSelector(getUsersError);
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
   const router = useRouter();
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(adb, 'users'));
-        const userList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setUsers(userList);
-        setLoading(false);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des utilisateurs:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
+    if (usersStatus === 'idle') {
+      dispatch(fetchUsers());
+    }
+  }, [usersStatus, dispatch]);
 
   const handleProfileClick = (name, surname, uid) => {
     const slug = `${name}-${surname}`;
     router.push(`/profile/${slug}?uid=${uid}`);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <Typography variant="h6">Chargement des utilisateurs...</Typography>
-      </Box>
-    );
-  }
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedUsers = users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <Card>
@@ -58,8 +54,20 @@ const UserList = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.length > 0 ? (
-              users.map((user, index) => (
+            {usersStatus === 'loading' ? (
+              <TableRow>
+                <TableCell colSpan={4} sx={{ textAlign: 'center' }}>
+                  <Typography variant="h6">Chargement des utilisateurs...</Typography>
+                </TableCell>
+              </TableRow>
+            ) : usersStatus === 'failed' ? (
+              <TableRow>
+                <TableCell colSpan={4} sx={{ textAlign: 'center' }}>
+                  <Typography variant="h6" color="error">Erreur: {error}</Typography>
+                </TableCell>
+              </TableRow>
+            ) : paginatedUsers.length > 0 ? (
+              paginatedUsers.map((user, index) => (
                 <TableRow key={index}>
                   <TableCell sx={{ pl: 6 }}>{`${user.name} ${user.surname}`}</TableCell>
                   <TableCell sx={{ pl: 4 }}>{user.email || 'Non disponible'}</TableCell>
@@ -82,7 +90,7 @@ const UserList = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} sx={{ pl: 4 }}>
+                <TableCell colSpan={4} sx={{ textAlign: 'center' }}>
                   <Typography variant="body1">Aucun utilisateur trouvé.</Typography>
                 </TableCell>
               </TableRow>
@@ -93,10 +101,10 @@ const UserList = () => {
       <TablePagination
         component="div"
         count={users.length}
-        rowsPerPage={10}
-        page={0}
-        onPageChange={() => {}}
-        onRowsPerPageChange={() => {}}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
       />
     </Card>
   );

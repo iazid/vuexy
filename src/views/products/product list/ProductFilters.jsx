@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, Grid, MenuItem } from '@mui/material';
 import CustomTextField from '@core/components/mui/TextField';
 
-const ProductFilters = ({ setData, productData, productTypes, initialType, setCurrentFilters }) => {
+const ProductFilters = React.memo ( ({ setData, productData, productTypes, initialType, setCurrentFilters }) => {
   const [selectedType, setSelectedType] = useState(initialType);
 
   useEffect(() => {
@@ -46,6 +46,6 @@ const ProductFilters = ({ setData, productData, productTypes, initialType, setCu
       </CardContent>
     </Card>
   );
-};
+});
 
 export default ProductFilters;

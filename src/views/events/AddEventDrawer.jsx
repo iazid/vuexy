@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Button, Drawer, IconButton, Typography, Divider, Box, TextField, CircularProgress, Switch, FormControlLabel } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { format } from 'date-fns';
-import { Timestamp, GeoPoint } from 'firebase/firestore';
-import FirebaseService from '../../app/firebase/firebaseService';
-import { collection, doc } from 'firebase/firestore';
-import { adb } from '../../app/firebase/firebaseconfigdb';
+import { addEvent, selectEventsLoading } from '../../redux-store/slices/eventsSlice';
 import EventModel from '../../utils/EventModel';
 
 const initialData = new EventModel();
 
-const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
+const AddEventDrawer = React.memo(({ open, handleClose, onEventAdded }) => {
+  const dispatch = useDispatch();
+  const loading = useSelector(selectEventsLoading);
+
   const { control, reset, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
@@ -27,7 +27,6 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -43,56 +42,15 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
   };
 
   const onSubmit = async (formData) => {
-    setLoading(true);
-    try {
-      const dateTimeString = `${formData.date}T${formData.time}:00`;
-      const eventTimestamp = Timestamp.fromDate(new Date(dateTimeString));
-
-      const newEvent = new EventModel({
-        ...formData,
-        date: eventTimestamp,
-        time: eventTimestamp,
-        regular_price: parseFloat(formData.regular_price),
-        simpEntry: parseFloat(formData.simpEntry),
-        place: new GeoPoint(0.0, 0.0) 
+    dispatch(addEvent({ formData, image }))
+      .unwrap()
+      .then((newEvent) => {
+        onEventAdded(newEvent.id);
+        handleReset();
+      })
+      .catch((error) => {
+        console.error('Erreur lors de l\'ajout de l\'événement:', error);
       });
-
-      const plainData = newEvent.toPlainObject();
-      const eventDocRef = doc(collection(adb, 'events'));
-      await FirebaseService.addEvent(eventDocRef, plainData);
-
-      if (image) {
-        const normalImagePath = `events/${eventDocRef.id}/pic`;
-        const croppedImagePath = `events/${eventDocRef.id}/pic_cropped`;
-        await FirebaseService.uploadEventImage(image, eventDocRef.id, 'pic');
-        await FirebaseService.uploadEventImage(image, eventDocRef.id, 'pic_cropped');
-        await FirebaseService.updateEvent(eventDocRef, {
-          imageUri: normalImagePath,
-          croppedUri: croppedImagePath,
-          pic: normalImagePath
-        });
-      }
-
-      onEventAdded(eventDocRef.id);
-      handleClose();
-      reset({
-        name: '',
-        date: '',
-        time: '',
-        address: '',
-        description: '',
-        place_description: '',
-        dressed_up: false,
-        regular_price: '',
-        simpEntry: '',
-      });
-      setImage(null);
-      setImagePreview(null);
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout de l\'événement:', error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleReset = () => {
@@ -112,7 +70,7 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
     setImagePreview(null);
   };
 
-  const today = new Date().toISOString().split('T')[0]; // Obtenir la date d'aujourd'hui au format ISO
+  const today = new Date().toISOString().split('T')[0];
 
   return (
     <Drawer
@@ -302,6 +260,6 @@ const AddEventDrawer = ({ open, handleClose, onEventAdded }) => {
       </Box>
     </Drawer>
   );
-};
+});
 
 export default AddEventDrawer;

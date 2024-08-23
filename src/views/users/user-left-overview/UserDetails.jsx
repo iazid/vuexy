@@ -1,62 +1,55 @@
-'use client'
+'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
-import { getDownloadURL, ref } from 'firebase/storage';
-import { Card, CardContent, Typography, Chip, Divider, Avatar } from '@mui/material';
-import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
-import UserData from '../../../utils/UserData';
+import { useDispatch, useSelector } from 'react-redux';
+import { Card, CardContent, Typography, Chip, Divider, Avatar, Button, Dialog, DialogContent } from '@mui/material';
+import { 
+  fetchUserDetails, 
+  selectUser, 
+  selectProfilePictureUrl, 
+  selectDocumentStatus, 
+  selectDocumentUrl, 
+  getUserDetailsStatus, 
+  getUserDetailsError,
+  fetchDocumentDetails,
+} from '../../../redux-store/slices/userDetailsSlice';
 
-const UserDetails = ({ setLoading }) => {
+const UserDetails = React.memo(() => {
   const searchParams = useSearchParams(); 
-  const [uid, setUid] = useState(null); 
-  const [userData, setUserData] = useState(null);
-  const [profilePictureUrl, setProfilePictureUrl] = useState(null);
+  const dispatch = useDispatch();
+  const uid = useMemo(() => searchParams.get('uid'), [searchParams]);
+
+  const userData = useSelector(selectUser);
+  const profilePictureUrl = useSelector(selectProfilePictureUrl);
+  const documentStatus = useSelector(selectDocumentStatus);
+  const documentUrl = useSelector(selectDocumentUrl);
+  const status = useSelector(getUserDetailsStatus);
+  const error = useSelector(getUserDetailsError);
+
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   useEffect(() => {
-    const uidFromQuery = searchParams.get('uid');
-    if (uidFromQuery) {
-      setUid(uidFromQuery);
+    if (uid) {
+      dispatch(fetchUserDetails(uid));
+      dispatch(fetchDocumentDetails(uid));
     }
-  }, [searchParams]);
+  }, [uid, dispatch]);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!uid) {
-        console.log('Aucun UID disponible pour l’instant.');
-        setLoading(false);
-        return;
-      }
+  const handleOpenImage = () => {
+    setIsImageOpen(true);
+  };
 
-      try {
-        const userRef = doc(adb, 'users', uid);
-        const userSnap = await getDoc(userRef);
+  const handleCloseImage = () => {
+    setIsImageOpen(false);
+  };
 
-        if (userSnap.exists()) {
-          const user = UserData.fromFirebase(userSnap);
-          setUserData(user);
-
-          if (user.pic) {
-            const picRef = ref(storagedb, user.pic);
-            const url = await getDownloadURL(picRef);
-            setProfilePictureUrl(url);
-          }
-        } else {
-          console.error("Utilisateur introuvable");
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des données de l'utilisateur :", error);
-      } finally {
-        setLoading(false);  // Une fois les données chargées, on arrête le chargement
-      }
-    };
-
-    fetchUserData();
-  }, [uid]);
+  if (status === 'failed') {
+    return <Typography variant="h6">Erreur : {error}</Typography>;
+  }
 
   if (!userData) {
-    return <Typography variant="h6">Les données de l'utilisateur n'ont pas pu être chargées.</Typography>;
+    return <Typography variant="h6">Aucune donnée utilisateur trouvée.</Typography>;
   }
 
   return (
@@ -71,6 +64,13 @@ const UserDetails = ({ setLoading }) => {
           <Typography variant="h5">{`${userData.name} ${userData.surname}`}</Typography>
           <Chip label={userData.isVerified ? "Vérifié" : "Non vérifié"} color="secondary" size="small" variant="tonal" />
         </div>
+        
+        <div>
+          <Typography variant="h5">ID du profil</Typography>
+          <Divider className="mlb-4" />
+          <Typography className="font-medium" color="text.primary">UID : {uid}</Typography>
+        </div>
+
         <div>
           <Typography variant="h5">Identité</Typography>
           <Divider className="mlb-4" />
@@ -78,9 +78,22 @@ const UserDetails = ({ setLoading }) => {
             <Typography className="font-medium" color="text.primary">Nom : {`${userData.name} ${userData.surname}`}</Typography>
             <Typography className="font-medium" color="text.primary">Date de naissance : {userData.dateOfBirth ? userData.dateOfBirth.toLocaleDateString() : "Non disponible"}</Typography>
             <Typography className="font-medium" color="text.primary">Genre : {userData.gender || "Non spécifié"}</Typography>
-            <Typography className="font-medium" color="text.primary">Vérification d'identité : {userData.docverified ? "Vérifiée" : "En attente"}</Typography>
+            <Typography className="font-medium" color="text.primary">
+              Vérification d'identité : {documentStatus || "Non disponible"}
+              {documentStatus === 'Accepté' && documentUrl && (
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  onClick={handleOpenImage} 
+                  sx={{ marginLeft: '10px' }}
+                >
+                  Voir
+                </Button>
+              )}
+            </Typography>
           </div>
         </div>
+
         <div>
           <Typography variant="h5">Coordonnées</Typography>
           <Divider className="mlb-4" />
@@ -90,8 +103,20 @@ const UserDetails = ({ setLoading }) => {
           </div>
         </div>
       </CardContent>
+
+      <Dialog open={isImageOpen} onClose={handleCloseImage}>
+        <DialogContent>
+          {documentUrl && (
+            <img 
+              src={documentUrl} 
+              alt="Document d'identité" 
+              style={{ width: '100%', height: 'auto', maxHeight: '80vh', objectFit: 'contain' }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
-};
+});
 
 export default UserDetails;
