@@ -151,7 +151,8 @@ const EventPage = () => {
         )}
         {selectedTab === 2 && <BookingTab eventId={event?.id} />}
         {selectedTab === 3 && <SimpleEntriesTab eventId={event?.id} />} 
-        {selectedTab === 4 && <OrdersTab eventId={event?.id} />}  {/* Render OrdersTab when selected */}
+        {selectedTab === 4 && <OrdersTab eventId={event?.id} />}  
+
       </Box>
     </Container>
   );

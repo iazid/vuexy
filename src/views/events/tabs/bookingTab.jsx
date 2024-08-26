@@ -1,323 +1,216 @@
-'use client';
-
 import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, Avatar } from '@mui/material';
+import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton } from '@mui/material';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
+import DialogsAlert from '../../../components/DialogsAlert'; 
 import FirebaseService from '../../../app/firebase/firebaseService';
-import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
-import { adb, storagedb, auth } from '../../../app/firebase/firebaseconfigdb';
-import Order from '../../../utils/OrderModel';
+import Reservation from '../../../utils/Reservation'; 
+import { doc, getDoc } from 'firebase/firestore';
+import { adb, auth } from '../../../app/firebase/firebaseconfigdb';
 
-const OrdersTab = ({ eventId }) => {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [totalAmount, setTotalAmount] = useState(0);
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [productDetails, setProductDetails] = useState({});
-    const [capacityDetails, setCapacityDetails] = useState({});
-    const [openDialog, setOpenDialog] = useState(false);
-    const [dialogAction, setDialogAction] = useState(null);
-    const [userToken, setUserToken] = useState(null);
+const BookingTab = ({ eventId }) => {
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogAction, setDialogAction] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
 
-    useEffect(() => {
-        const fetchOrders = async () => {
-            try {
-                const ordersRef = collection(adb, 'orders');
-                const querySnapshot = await getDocs(ordersRef);
-
-                const userCache = {};
-                const tableCache = {};
-                let totalAmountAccumulated = 0;
-
-                const ordersData = await Promise.all(
-                    querySnapshot.docs.map(async (doc) => {
-                        const orderData = doc.data();
-
-                        if (orderData.eventRef && orderData.eventRef.id === eventId) {
-                            // Récupérer les informations utilisateur
-                            let userData;
-                            const orderUid = orderData.ownerRef.id;
-                            if (userCache[orderUid]) {
-                                userData = userCache[orderUid];
-                            } else {
-                                const userSnap = await getDoc(orderData.ownerRef);
-                                userData = userSnap.exists() ? userSnap.data() : { name: "Inconnu", surname: "" };
-                                userCache[orderUid] = userData;
-                            }
-
-                            const ownerName = `${userData.name} ${userData.surname}`;
-
-                            // Récupérer le nom de la table
-                            let tableName = "Non spécifié";
-                            const reservationSnapshot = await getDocs(collection(adb, 'reservations'));
-                            const reservation = reservationSnapshot.docs.find(resDoc => resDoc.data().ordersRef.some(ref => ref.id === doc.id));
-                            if (reservation) {
-                                const tableRef = reservation.data().tableRef;
-                                if (tableCache[tableRef.id]) {
-                                    tableName = tableCache[tableRef.id];
-                                } else {
-                                    const tableSnap = await getDoc(tableRef);
-                                    tableName = tableSnap.exists() ? tableSnap.data().name : "Non spécifié";
-                                    tableCache[tableRef.id] = tableName;
-                                }
-                            }
-
-                            totalAmountAccumulated += orderData.total || 0;
-
-                            return new Order({
-                                id: doc.id,
-                                ownerRef: orderData.ownerRef.id,
-                                ownerName: ownerName,
-                                eventRef: orderData.eventRef.id,
-                                productMap: orderData.productMap,
-                                contributionRefs: orderData.contributionRefs,
-                                type: orderData.type,
-                                status: orderData.status,
-                                total: orderData.total,
-                                alreadyPaid: orderData.alreadyPaid,
-                                created: orderData.created.toDate(),
-                                paid: orderData.paid,
-                                tableName: tableName,
-                            });
-                        } else {
-                            return null;
-                        }
-                    })
-                );
-
-                setOrders(ordersData.filter(order => order !== null));
-                setTotalAmount(totalAmountAccumulated);
-                setLoading(false);
-            } catch (error) {
-                console.error("Error fetching orders:", error);
-                setLoading(false);
-            }
-        };
-
-        // Fetch the token when the component mounts
-        const fetchToken = async () => {
-            const user = auth.currentUser;
-            if (user) {
-                const token = await user.getIdToken();
-                setUserToken(token);
-            }
-        };
-
-        fetchToken();
-
-        if (eventId) {
-            fetchOrders();
-        }
-    }, [eventId]);
-
-    const fetchProductDetails = async (productId) => {
-        if (!productDetails[productId]) {
-            try {
-                const productDoc = await getDoc(doc(adb, 'products', productId));
-                if (productDoc.exists()) {
-                    const productData = productDoc.data();
-
-                    // Récupérer l'URL de l'image à partir de Firebase Storage
-                    let imageUrl;
-                    try {
-                        const imageRef = ref(storagedb, productData.pic); // Chemin correct pour récupérer l'image
-                        imageUrl = await getDownloadURL(imageRef);
-                    } catch (error) {
-                        imageUrl = '/path/to/default/image.jpg'; // Image de secours
-                    }
-
-                    setProductDetails(prevState => ({
-                        ...prevState,
-                        [productId]: {
-                            name: productData.name,
-                            picUrl: imageUrl
-                        },
-                    }));
-                } else {
-                    setProductDetails(prevState => ({
-                        ...prevState,
-                        [productId]: {
-                            name: 'Produit non trouvé',
-                            picUrl: '/path/to/default/image.jpg',
-                        },
-                    }));
-                }
-            } catch (error) {
-                console.error(`Erreur lors de la récupération des détails du produit avec ID ${productId}:`, error);
-                setProductDetails(prevState => ({
-                    ...prevState,
-                    [productId]: {
-                        name: 'Erreur de récupération',
-                        picUrl: '/path/to/default/image.jpg',
-                    },
-                }));
-            }
-        }
+  useEffect(() => {
+    const fetchTokenAndLog = async () => {
+      const user = auth.currentUser;
+  
+      if (user) {
+        const token = await user.getIdToken();
+        console.log("Token on page load:", token);
+      } else {
+        console.error("User is not authenticated");
+      }
     };
 
-    const fetchCapacityDetails = async (capacityRef) => {
-        if (capacityRef && !capacityDetails[capacityRef.id]) {
-            try {
-                const capacityDoc = await getDoc(capacityRef);
-                if (capacityDoc.exists()) {
-                    const capacityData = capacityDoc.data();
+    fetchTokenAndLog();
 
-                    setCapacityDetails(prevState => ({
-                        ...prevState,
-                        [capacityRef.id]: {
-                            capacity: capacityData.capacity,
-                            unity: capacityData.unity
-                        },
-                    }));
-                } else {
-                    setCapacityDetails(prevState => ({
-                        ...prevState,
-                        [capacityRef.id]: {
-                            capacity: 'Capacité non trouvée',
-                            unity: ''
-                        },
-                    }));
-                }
-            } catch (error) {
-                console.error(`Erreur lors de la récupération des détails de la capacité avec ID ${capacityRef.id}:`, error);
-                setCapacityDetails(prevState => ({
-                    ...prevState,
-                    [capacityRef.id]: {
-                        capacity: 'Erreur de récupération',
-                        unity: ''
-                    },
-                }));
+    if (eventId) {
+      const eventRef = doc(adb, 'events', eventId);
+
+      const unsubscribe = FirebaseService.streamBookingRequests(eventRef, async (snapshot) => {
+        const reservationsData = await Promise.all(
+          snapshot.docs.map(async (doc) => {
+            const reservation = Reservation.fromFirebase(doc);
+            const userSnap = await getDoc(reservation.ownerRef);
+            const userData = userSnap.exists() ? userSnap.data() : { name: "Inconnu", surname: "" };
+
+            let paymentProgress = '0/0€';
+            if (reservation.ordersRef && reservation.ordersRef.length > 0) {
+              const paymentDetails = await Promise.all(
+                reservation.ordersRef.map(async (orderRef) => {
+                  const orderSnap = await getDoc(orderRef);
+                  const orderData = orderSnap.exists() ? orderSnap.data() : { alreadyPaid: 0, total: 0 };
+                  return `${orderData.alreadyPaid}/${orderData.total}€`;
+                })
+              );
+              paymentProgress = paymentDetails.join(", ");
             }
-        }
-    };
 
-    const handleOpenDetails = (order) => {
-        setSelectedOrder(order);
-        order.productMap.forEach(product => {
-            if (product && product.product && product.capacity) {
-                fetchProductDetails(product.product.id);
-                fetchCapacityDetails(product.capacity);
-            }
-        });
-    };
-
-    const handleCloseDetails = () => {
-        setSelectedOrder(null);
-    };
-
-    const handleRefuseOrder = async () => {
-        try {
-            if (selectedOrder && userToken) {
-                await FirebaseService.refuseOrder({
-                    orderId: selectedOrder.id,
-                    userId: selectedOrder.ownerRef,
-                    token: userToken,
-                });
-                alert('Order refused successfully.');
-                handleCloseDetails(); // Fermer le modal après succès
-            }
-        } catch (error) {
-            alert('Failed to refuse the order. Please try again.');
-        }
-    };
-
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <CircularProgress />
-            </Box>
+            return {
+              ...reservation,
+              ownerName: `${userData.name} ${userData.surname}`,
+              paymentProgress,
+            };
+          })
         );
+        setReservations(reservationsData);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
     }
+  }, [eventId]);
 
+  const getStatusLabel = (status) => {
+    const statusMap = {
+      0: 'En attente',
+      1: 'Acceptée',
+      2: 'Refusée',
+      3: 'Annulée',
+      4: 'À faire',
+    };
+    return statusMap[status] || 'Inconnu';
+  };
+
+  const handleOpenDialog = (action, bookingId) => {
+    setDialogAction(action);
+    setSelectedBookingId(bookingId);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleConfirmDialog = async () => {
+    if (dialogAction === 'validate') {
+      handleValidateBooking(selectedBookingId);
+    } else if (dialogAction === 'refuse') {
+      handleRefuseBooking(selectedBookingId);
+    }
+    setOpenDialog(false);
+  };
+
+  const handleValidateBooking = async (bookingId) => {
+    try {
+      const user = auth.currentUser;
+  
+      if (!user) {
+        console.error("User is not authenticated");
+        return;
+      }
+  
+      const token = await user.getIdToken();
+  
+      await FirebaseService.validateBooking({ bookingId, userId: user.uid, token });
+  
+      setReservations((prevReservations) =>
+        prevReservations.map((reservation) =>
+          reservation.resaRef.id === bookingId ? { ...reservation, status: 1 } : reservation
+        )
+      );
+    } catch (error) {
+      console.error("Error validating booking: ", error);
+    }
+  };
+
+  const handleRefuseBooking = async (bookingId) => {
+    try {
+      const user = auth.currentUser;
+  
+      if (!user) {
+        console.error("User is not authenticated");
+        return;
+      }
+  
+      const token = await user.getIdToken();
+  
+      await FirebaseService.refuseBooking({ bookingId, userId: user.uid, token });
+  
+      setReservations((prevReservations) =>
+        prevReservations.map((reservation) =>
+          reservation.resaRef.id === bookingId ? { ...reservation, status: 2 } : reservation
+        )
+      );
+    } catch (error) {
+      console.error("Error refusing booking: ", error);
+    }
+  };
+
+  if (loading) {
     return (
-        <Box>
-            <br />
-            <TableContainer>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Client</TableCell>
-                            <TableCell>Nom de table</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Date de la demande</TableCell>
-                            <TableCell>Avancement du paiement</TableCell>
-                            <TableCell>Détails</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {orders.length > 0 ? (
-                            orders.map((order, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{order.ownerName}</TableCell>
-                                    <TableCell>{order.tableName}</TableCell>
-                                    <TableCell>{order.getStatusLabel()}</TableCell>
-                                    <TableCell>{new Date(order.created).toLocaleDateString()}</TableCell>
-                                    <TableCell>{`${order.alreadyPaid}/${order.total}€`}</TableCell>
-                                    <TableCell>
-                                        <IconButton onClick={() => handleOpenDetails(order)}>
-                                            <SearchIcon />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={6}>
-                                    <Typography variant="body1">Aucune commande trouvée.</Typography>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
-            {/* Détails de la commande dans un modal */}
-            <Dialog open={Boolean(selectedOrder)} onClose={handleCloseDetails} maxWidth="md" fullWidth>
-                <DialogTitle>Détails de la commande</DialogTitle>
-                <DialogContent>
-                    {selectedOrder && (
-                        <>
-                            <Typography variant="h6" sx={{ mb: 2 }}>Commande</Typography>
-                            <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-                                {selectedOrder.productMap
-                                    .filter(product => product && product.product && product.capacity) // Filtrer les produits avec une capacité null
-                                    .map((product, idx) => (
-                                        <li key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <Avatar 
-                                                    src={productDetails[product.product.id]?.picUrl || '/path/to/default/image.jpg'} 
-                                                    alt={productDetails[product.product.id]?.name || 'Image du produit'} 
-                                                    sx={{ marginRight: 2 }}
-                                                />
-                                                <Box>
-                                                    <Typography variant="body1">
-                                                        <strong>{productDetails[product.product.id]?.name || 'Chargement...'}</strong>
-                                                    </Typography>
-                                                    <Typography variant="body2">
-                                                        {capacityDetails[product.capacity.id]?.capacity} {capacityDetails[product.capacity.id]?.unity} x {product.quantity}
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
-                                            <Typography variant="body1" sx={{ marginLeft: 'auto' }}>
-                                                {product.price || 0}€
-                                            </Typography>
-                                        </li>
-                                    ))}
-                            </ul>
-                            <Typography variant="h6" sx={{ textAlign: 'right', mt: 2 }}>
-                                Total : {selectedOrder.total}€
-                            </Typography>
-                        </>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDetails}>Fermer</Button>
-                    <Button onClick={handleRefuseOrder} color="secondary">Annuler la commande</Button>
-                </DialogActions>
-            </Dialog>
-        </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <CircularProgress />
+      </Box>
     );
+  }
+
+  return (
+    <Box>
+        <br />
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Demandes de Réservation
+      </Typography>
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Client</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Nombre d'invités</TableCell>
+              <TableCell>Date de la demande</TableCell>
+              <TableCell>Avancement du paiement</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {reservations.length > 0 ? (
+              reservations.map((reservation, index) => (
+                <TableRow key={index}>
+                  <TableCell>{reservation.ownerName}</TableCell>
+                  <TableCell>{getStatusLabel(reservation.status)}</TableCell>
+                  <TableCell>{reservation.guests.length}</TableCell>
+                  <TableCell>{new Date(reservation.created).toLocaleDateString()}</TableCell>
+                  <TableCell>{reservation.paymentProgress}</TableCell>
+                  <TableCell>
+                    <IconButton color="primary" onClick={() => handleOpenDialog('validate', reservation.resaRef.id)}>
+                      <CheckIcon />
+                    </IconButton>
+                    <IconButton color="error" onClick={() => handleOpenDialog('refuse', reservation.resaRef.id)}>
+                      <CloseIcon />
+                    </IconButton>
+                    <IconButton color="default">
+                      <SearchIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <Typography variant="body1">Aucune demande de réservation en attente.</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      
+      <DialogsAlert
+        open={openDialog}
+        handleClose={handleCloseDialog}
+        handleConfirm={handleConfirmDialog}
+        title={dialogAction === 'validate' ? 'Confirmer la validation' : 'Confirmer le refus'}
+        description={dialogAction === 'validate' ? 'Voulez-vous vraiment valider cette réservation?' : 'Voulez-vous vraiment refuser cette réservation?'}
+      />
+    </Box>
+  );
 };
 
-export default OrdersTab;
+export default BookingTab;
