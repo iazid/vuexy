@@ -118,7 +118,7 @@ const ProductTypeListTable = React.memo (({ productTypes, setAddProductTypeOpen 
 
   return (
     <Card>
-      <CardHeader title="Liste des Types de Produits" />
+      <CardHeader title="Types de produits" />
       <div className="flex justify-between flex-col items-start md:flex-row md:items-center p-6 border-bs gap-4">
         <CustomTextField
           select
@@ -134,7 +134,7 @@ const ProductTypeListTable = React.memo (({ productTypes, setAddProductTypeOpen 
           <DebouncedInput
             value={globalFilter ?? ''}
             onChange={value => setGlobalFilter(String(value))}
-            placeholder="Rechercher un Type"
+            placeholder="Rechercher un type"
             className="is-full sm:is-auto"
           />
           <Button

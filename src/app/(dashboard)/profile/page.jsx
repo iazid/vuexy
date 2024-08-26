@@ -1,11 +1,29 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Card, CardHeader, Typography, Chip, IconButton, TablePagination, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box } from '@mui/material';
+import { Card, CardHeader, Typography, Chip, IconButton, TablePagination, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box, TextField } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useRouter } from 'next/navigation';  
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUsers, selectAllUsers, getUsersStatus, getUsersError } from '../../../redux-store/slices/userSlice';
+
+const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      onChange(value);
+    }, debounce);
+
+    return () => clearTimeout(timeout);
+  }, [value, onChange, debounce]);
+
+  return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} />;
+};
 
 const UserList = () => {
   const dispatch = useDispatch();
@@ -15,7 +33,8 @@ const UserList = () => {
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+  const [globalFilter, setGlobalFilter] = useState('');
+
   const router = useRouter();
 
   useEffect(() => {
@@ -38,16 +57,39 @@ const UserList = () => {
     setPage(0);
   };
 
-  const paginatedUsers = users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const filterUsers = (users, filter) => {
+    const searchTerm = filter.trim().toLowerCase();
+
+    return users.filter(user => {
+      const nameMatch = `${user.name} ${user.surname}`.toLowerCase().includes(searchTerm);
+      const emailMatch = user.email ? user.email.toLowerCase().includes(searchTerm) : false;
+      return nameMatch || emailMatch;
+    });
+  };
+
+  const filteredUsers = filterUsers(users, globalFilter);
+
+  const paginatedUsers = filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <Card>
-      <CardHeader title="Liste des utilisateurs" />
+      <CardHeader 
+        title="Liste des utilisateurs"
+        action={
+          <DebouncedInput
+            value={globalFilter}
+            onChange={value => setGlobalFilter(value)}
+            placeholder="Rechercher un utilisateur..."
+            variant="outlined"
+            style={{ minWidth: '300px', marginRight: '16px' }}
+          />
+        }
+      />
       <TableContainer>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ pl: 6}}>Nom</TableCell>
+              <TableCell sx={{ pl: 6 }}>Nom</TableCell>
               <TableCell sx={{ pl: 4 }}>Email</TableCell>
               <TableCell sx={{ pl: 4 }}>Statut</TableCell>
               <TableCell sx={{ pl: 4 }}>Profil</TableCell>
@@ -100,7 +142,7 @@ const UserList = () => {
       </TableContainer>
       <TablePagination
         component="div"
-        count={users.length}
+        count={filteredUsers.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}

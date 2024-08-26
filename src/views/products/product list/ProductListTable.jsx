@@ -80,7 +80,7 @@ const ProductListTable = React.memo (({ productData, setAddProductOpen }) => {
 
   return (
     <Card>
-      <CardHeader title="Liste des Produits" />
+      <CardHeader title="liste des produits" />
       <div className="flex justify-between flex-col items-start md:flex-row md:items-center p-6 border-bs gap-4">
         <CustomTextField
           select
@@ -96,7 +96,7 @@ const ProductListTable = React.memo (({ productData, setAddProductOpen }) => {
           <DebouncedInput
             value={globalFilter ?? ''}
             onChange={value => setGlobalFilter(String(value))}
-            placeholder="Rechercher produit"
+            placeholder="Rechercher un produit"
             className="is-full sm:is-auto"
           />
           

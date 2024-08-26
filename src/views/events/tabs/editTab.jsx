@@ -20,9 +20,7 @@ const EditEventForm = ({
 }) => (
     <div>
     <Box>
-    <br />
-    <Typography variant='h4'>Modifier l'évènement</Typography>
-    <br />
+  <br />
  </Box>
   <Box component='form' onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6'>
     <input

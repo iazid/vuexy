@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, Avatar } from '@mui/material';
+import { Box, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, TableFooter, Dialog, DialogTitle, DialogContent, DialogActions, Button, Avatar } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import FirebaseService from '../../../app/firebase/firebaseService';
 import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { adb, storagedb, auth } from '../../../app/firebase/firebaseconfigdb';
+import { adb, storagedb } from '../../../app/firebase/firebaseconfigdb';
 import Order from '../../../utils/OrderModel';
+import firebaseService from '../../../app/firebase/firebaseService';
 
 const OrdersTab = ({ eventId }) => {
     const [orders, setOrders] = useState([]);
@@ -16,9 +16,6 @@ const OrdersTab = ({ eventId }) => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [productDetails, setProductDetails] = useState({});
     const [capacityDetails, setCapacityDetails] = useState({});
-    const [openDialog, setOpenDialog] = useState(false);
-    const [dialogAction, setDialogAction] = useState(null);
-    const [userToken, setUserToken] = useState(null);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -35,7 +32,7 @@ const OrdersTab = ({ eventId }) => {
                         const orderData = doc.data();
 
                         if (orderData.eventRef && orderData.eventRef.id === eventId) {
-                            // Récupérer les informations utilisateur
+                            
                             let userData;
                             const orderUid = orderData.ownerRef.id;
                             if (userCache[orderUid]) {
@@ -48,7 +45,7 @@ const OrdersTab = ({ eventId }) => {
 
                             const ownerName = `${userData.name} ${userData.surname}`;
 
-                            // Récupérer le nom de la table
+                            
                             let tableName = "Non spécifié";
                             const reservationSnapshot = await getDocs(collection(adb, 'reservations'));
                             const reservation = reservationSnapshot.docs.find(resDoc => resDoc.data().ordersRef.some(ref => ref.id === doc.id));
@@ -95,17 +92,6 @@ const OrdersTab = ({ eventId }) => {
             }
         };
 
-        // Fetch the token when the component mounts
-        const fetchToken = async () => {
-            const user = auth.currentUser;
-            if (user) {
-                const token = await user.getIdToken();
-                setUserToken(token);
-            }
-        };
-
-        fetchToken();
-
         if (eventId) {
             fetchOrders();
         }
@@ -118,13 +104,13 @@ const OrdersTab = ({ eventId }) => {
                 if (productDoc.exists()) {
                     const productData = productDoc.data();
 
-                    // Récupérer l'URL de l'image à partir de Firebase Storage
+                    
                     let imageUrl;
                     try {
-                        const imageRef = ref(storagedb, productData.pic); // Chemin correct pour récupérer l'image
+                        const imageRef = ref(storagedb, productData.pic);
                         imageUrl = await getDownloadURL(imageRef);
                     } catch (error) {
-                        imageUrl = '/path/to/default/image.jpg'; // Image de secours
+                        imageUrl = '/path/to/default/image.jpg'; 
                     }
 
                     setProductDetails(prevState => ({
@@ -167,7 +153,8 @@ const OrdersTab = ({ eventId }) => {
                         ...prevState,
                         [capacityRef.id]: {
                             capacity: capacityData.capacity,
-                            unity: capacityData.unity
+                            unity: capacityData.unity,
+                            price: capacityData.price, 
                         },
                     }));
                 } else {
@@ -175,7 +162,8 @@ const OrdersTab = ({ eventId }) => {
                         ...prevState,
                         [capacityRef.id]: {
                             capacity: 'Capacité non trouvée',
-                            unity: ''
+                            unity: '',
+                            price: 0,
                         },
                     }));
                 }
@@ -185,7 +173,8 @@ const OrdersTab = ({ eventId }) => {
                     ...prevState,
                     [capacityRef.id]: {
                         capacity: 'Erreur de récupération',
-                        unity: ''
+                        unity: '',
+                        price: 0, 
                     },
                 }));
             }
@@ -208,14 +197,14 @@ const OrdersTab = ({ eventId }) => {
 
     const handleRefuseOrder = async () => {
         try {
-            if (selectedOrder && userToken) {
-                await FirebaseService.refuseOrder({
+            if (selectedOrder) {
+                await firebaseService.refuseOrder({
                     orderId: selectedOrder.id,
-                    userId: selectedOrder.ownerRef,
-                    token: userToken,
+                    userId: selectedOrder.ownerRef, 
+                    token: userToken, 
                 });
                 alert('Order refused successfully.');
-                handleCloseDetails(); // Fermer le modal après succès
+                handleCloseDetails(); 
             }
         } catch (error) {
             alert('Failed to refuse the order. Please try again.');
@@ -233,6 +222,7 @@ const OrdersTab = ({ eventId }) => {
     return (
         <Box>
             <br />
+            
             <TableContainer>
                 <Table>
                     <TableHead>
@@ -269,10 +259,17 @@ const OrdersTab = ({ eventId }) => {
                             </TableRow>
                         )}
                     </TableBody>
+                    <TableFooter>
+                        <TableRow>
+                            <TableCell colSpan={6} align="right">
+                                <Typography variant="h6">Total : {totalAmount}€</Typography>
+                            </TableCell>
+                        </TableRow>
+                    </TableFooter>
                 </Table>
             </TableContainer>
 
-            {/* Détails de la commande dans un modal */}
+            
             <Dialog open={Boolean(selectedOrder)} onClose={handleCloseDetails} maxWidth="md" fullWidth>
                 <DialogTitle>Détails de la commande</DialogTitle>
                 <DialogContent>
@@ -281,29 +278,34 @@ const OrdersTab = ({ eventId }) => {
                             <Typography variant="h6" sx={{ mb: 2 }}>Commande</Typography>
                             <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
                                 {selectedOrder.productMap
-                                    .filter(product => product && product.product && product.capacity) // Filtrer les produits avec une capacité null
-                                    .map((product, idx) => (
-                                        <li key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <Avatar 
-                                                    src={productDetails[product.product.id]?.picUrl || '/path/to/default/image.jpg'} 
-                                                    alt={productDetails[product.product.id]?.name || 'Image du produit'} 
-                                                    sx={{ marginRight: 2 }}
-                                                />
-                                                <Box>
-                                                    <Typography variant="body1">
-                                                        <strong>{productDetails[product.product.id]?.name || 'Chargement...'}</strong>
-                                                    </Typography>
-                                                    <Typography variant="body2">
-                                                        {capacityDetails[product.capacity.id]?.capacity} {capacityDetails[product.capacity.id]?.unity} x {product.quantity}
-                                                    </Typography>
+                                    .filter(product => product && product.product && product.capacity) 
+                                    .map((product, idx) => {
+                                        const capacityDetail = capacityDetails[product.capacity.id];
+                                        const totalPrice = (capacityDetail?.price || 0) * product.quantity;
+
+                                        return (
+                                            <li key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <Avatar 
+                                                        src={productDetails[product.product.id]?.picUrl || '/path/to/default/image.jpg'} 
+                                                        alt={productDetails[product.product.id]?.name || 'Image du produit'} 
+                                                        sx={{ marginRight: 2 }}
+                                                    />
+                                                    <Box>
+                                                        <Typography variant="body1">
+                                                            <strong>{productDetails[product.product.id]?.name || 'Chargement...'}</strong>
+                                                        </Typography>
+                                                        <Typography variant="body2">
+                                                            {capacityDetail?.capacity} {capacityDetail?.unity} x {product.quantity}
+                                                        </Typography>
+                                                    </Box>
                                                 </Box>
-                                            </Box>
-                                            <Typography variant="body1" sx={{ marginLeft: 'auto' }}>
-                                                {product.price || 0}€
-                                            </Typography>
-                                        </li>
-                                    ))}
+                                                <Typography variant="body1" sx={{ marginLeft: 'auto' }}>
+                                                    {totalPrice}€
+                                                </Typography>
+                                            </li>
+                                        );
+                                    })}
                             </ul>
                             <Typography variant="h6" sx={{ textAlign: 'right', mt: 2 }}>
                                 Total : {selectedOrder.total}€
@@ -313,7 +315,7 @@ const OrdersTab = ({ eventId }) => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseDetails}>Fermer</Button>
-                    <Button onClick={handleRefuseOrder} color="secondary">Annuler la commande</Button>
+                    <Button onClick={handleRefuseOrder} color="secondary">Annuler la commande</Button> 
                 </DialogActions>
             </Dialog>
         </Box>

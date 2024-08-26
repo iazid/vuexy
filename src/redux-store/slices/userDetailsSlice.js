@@ -22,8 +22,13 @@ export const fetchUserDetails = createAsyncThunk(
 
       let profilePictureUrl = null;
       if (user.pic) {
-        const picRef = ref(storagedb, user.pic);
-        profilePictureUrl = await getDownloadURL(picRef);
+        try {
+          const picRef = ref(storagedb, user.pic);
+          profilePictureUrl = await getDownloadURL(picRef);
+        } catch (error) {
+          console.warn(`Unable to fetch profile picture for UID ${uid}: ${error.message}`);
+          profilePictureUrl = "/default-profile.png"; // Fallback to default profile picture
+        }
       }
 
       return { user, profilePictureUrl };
@@ -43,8 +48,13 @@ export const fetchDocumentDetails = createAsyncThunk(
 
       let documentUrl = null;
       if (documentModel && documentModel.status === 'Accepté') {
-        const storageRef = ref(storagedb, documentModel.documentPath || `${uid}/identity.jpg`);
-        documentUrl = await getDownloadURL(storageRef);
+        try {
+          const storageRef = ref(storagedb, documentModel.documentPath || `${uid}/identity.jpg`);
+          documentUrl = await getDownloadURL(storageRef);
+        } catch (error) {
+          console.warn(`Document not found for UID ${uid}: ${error.message}`);
+          documentUrl = null; // No document found
+        }
       }
 
       return { documentStatus: documentModel?.status || 'Non disponible', documentUrl };

@@ -29,7 +29,7 @@ import CustomTextField from '@core/components/mui/TextField';
 import AddEventDrawer from './AddEventDrawer';
 import { adb, storagedb } from '../../app/firebase/firebaseconfigdb';
 import EventFactory from '../../utils/EventFactory';
-import { slugify } from '../../utils/slugify'; // Importez votre fonction slugify
+import { slugify } from '../../utils/slugify'; 
 
 const Icon = styled('i')({});
 
@@ -128,7 +128,7 @@ const EventListTable = () => {
           <Typography 
             variant="body1" 
             onClick={() => {
-              router.push(`/events/eventpage/${row.original.slug}`); // Redirect to the event detail page using slug
+              router.push(`/events/eventpage/${row.original.slug}`); 
             }}
             style={{ cursor: 'pointer' }}
           >
@@ -174,7 +174,7 @@ const EventListTable = () => {
     const newEvent = EventFactory(eventDoc);
     const imageRef = ref(storagedb, `events/${eventId}/pic`);
     newEvent.avatar = await getDownloadURL(imageRef).catch(() => `events/${eventId}/pic`);
-    newEvent.slug = slugify(newEvent.name); // Ajouter le slug
+    newEvent.slug = slugify(newEvent.name); 
     setEvents(prevEvents => [...prevEvents, newEvent]);
     setFilteredEvents(prevEvents => [...prevEvents, newEvent]);
   };
@@ -190,7 +190,7 @@ const EventListTable = () => {
   return (
     <div>
       <div className='flex justify-between items-center'>
-        <div className='flex items-center'>
+        <div className='flex items-center flex-col'>
           <Select
             value={dateFilter}
             onChange={handleMenuChange}
@@ -205,15 +205,16 @@ const EventListTable = () => {
             }}
             IconComponent={ArrowDropDownIcon}
             style={{
-              minWidth: '320px', 
+              minWidth: '330px', 
               fontSize: '1.8rem',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              
             }}
           >
             <MenuItem value='all'>Tous les évènements</MenuItem>
-            <MenuItem value='upcoming'>évènements futurs</MenuItem>
-            <MenuItem value='today'>évènements actuels</MenuItem>
-            <MenuItem value='passed'>évènements passés</MenuItem>
+            <MenuItem value='upcoming'>Evènements futurs</MenuItem>
+            <MenuItem value='today'>Evènements actuels</MenuItem>
+            <MenuItem value='passed'>Evènements passés</MenuItem>
           </Select>
         </div>
         <Button

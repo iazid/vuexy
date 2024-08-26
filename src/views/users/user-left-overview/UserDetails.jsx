@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
-import { Card, CardContent, Typography, Chip, Divider, Avatar, Button, Dialog, DialogContent } from '@mui/material';
+import { Card, CardContent, Typography, Chip, Divider, Avatar, Button, Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { 
   fetchUserDetails, 
   selectUser, 
@@ -28,6 +28,7 @@ const UserDetails = React.memo(() => {
   const error = useSelector(getUserDetailsError);
 
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (uid) {
@@ -37,11 +38,16 @@ const UserDetails = React.memo(() => {
   }, [uid, dispatch]);
 
   const handleOpenImage = () => {
-    setIsImageOpen(true);
+    if (documentUrl) {
+      setIsImageOpen(true);
+    } else {
+      setErrorMessage("Erreur : aucun document n'a été transmis");
+    }
   };
 
   const handleCloseImage = () => {
     setIsImageOpen(false);
+    setErrorMessage('');
   };
 
   if (status === 'failed') {
@@ -62,13 +68,7 @@ const UserDetails = React.memo(() => {
             sx={{ width: 120, height: 120 }}
           />
           <Typography variant="h5">{`${userData.name} ${userData.surname}`}</Typography>
-          <Chip label={userData.isVerified ? "Vérifié" : "Non vérifié"} color="secondary" size="small" variant="tonal" />
-        </div>
-        
-        <div>
-          <Typography variant="h5">ID du profil</Typography>
-          <Divider className="mlb-4" />
-          <Typography className="font-medium" color="text.primary">UID : {uid}</Typography>
+          <Chip label={userData.isVerified ? "Vérifié" : "non vérifié"} color="secondary" size="small" variant="tonal" />
         </div>
 
         <div>
@@ -76,11 +76,11 @@ const UserDetails = React.memo(() => {
           <Divider className="mlb-4" />
           <div className="flex flex-col gap-2">
             <Typography className="font-medium" color="text.primary">Nom : {`${userData.name} ${userData.surname}`}</Typography>
-            <Typography className="font-medium" color="text.primary">Date de naissance : {userData.dateOfBirth ? userData.dateOfBirth.toLocaleDateString() : "Non disponible"}</Typography>
-            <Typography className="font-medium" color="text.primary">Genre : {userData.gender || "Non spécifié"}</Typography>
+            <Typography className="font-medium" color="text.primary">Date de naissance : {userData.dateOfBirth ? userData.dateOfBirth.toLocaleDateString() : "non disponible"}</Typography>
+            <Typography className="font-medium" color="text.primary">Genre : {userData.gender || "non spécifié"}</Typography>
             <Typography className="font-medium" color="text.primary">
-              Vérification d'identité : {documentStatus || "Non disponible"}
-              {documentStatus === 'Accepté' && documentUrl && (
+              Vérification d'identité : {documentStatus || "non disponible"}
+              {documentStatus === 'Accepté' && (
                 <Button 
                   variant="contained" 
                   color="primary" 
@@ -98,21 +98,35 @@ const UserDetails = React.memo(() => {
           <Typography variant="h5">Coordonnées</Typography>
           <Divider className="mlb-4" />
           <div className="flex flex-col gap-2">
-            <Typography className="font-medium" color="text.primary">Adresse email : {userData.mail || "Non disponible"}</Typography>
-            <Typography className="font-medium" color="text.primary">Numéro de téléphone : {userData.phoneCode ? `+${userData.phoneCode} ${userData.phoneNumber}` : "Non disponible"}</Typography>
+            <Typography className="font-medium" color="text.primary">Adresse email : {userData.mail || "non disponible"}</Typography>
+            <Typography className="font-medium" color="text.primary">
+              Numéro de téléphone : 
+              {userData.phoneCode && userData.phoneNumber ? 
+                `+${userData.phoneCode} ${userData.phoneNumber}` : 
+                " non indiqué"}
+            </Typography>
           </div>
         </div>
       </CardContent>
 
       <Dialog open={isImageOpen} onClose={handleCloseImage}>
         <DialogContent>
-          {documentUrl && (
+          {documentUrl ? (
             <img 
               src={documentUrl} 
               alt="Document d'identité" 
               style={{ width: '100%', height: 'auto', maxHeight: '80vh', objectFit: 'contain' }} 
             />
+          ) : (
+            <Typography variant="body1">Erreur : aucun document n'a été transmis</Typography>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(errorMessage)} onClose={handleCloseImage}>
+        <DialogTitle>Erreur</DialogTitle>
+        <DialogContent>
+          <Typography>{errorMessage}</Typography>
         </DialogContent>
       </Dialog>
     </Card>

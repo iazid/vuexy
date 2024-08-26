@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -11,6 +11,7 @@ import AddTableForm from '../../../../../views/events/tabs/tableTab';
 import EditEventForm from '../../../../../views/events/tabs/editTab';
 import BookingTab from '../../../../../views/events/tabs/bookingTab';
 import SimpleEntriesTab from '../../../../../views/events/tabs/simpleEntriesTab'; 
+import OrdersTab from '../../../../../views/events/tabs/ordersTab';  // Import the OrdersTab
 
 const EventPage = () => {
   const theme = useTheme();
@@ -58,8 +59,8 @@ const EventPage = () => {
 
   useEffect(() => {
     if (event) {
-      setValue('date', event.dateFormatted);  // Utilisez la date formatée
-      setValue('time', event.timeFormatted);  // Utilisez l'heure formatée
+      setValue('date', event.dateFormatted); 
+      setValue('time', event.timeFormatted);  
       setValue('name', event.name);
       setValue('address', event.address);
       setValue('description', event.description);
@@ -121,6 +122,7 @@ const EventPage = () => {
           <Tab label="Ajouter une table" />
           <Tab label="Demandes" />
           <Tab label="Entrées simples" /> 
+          <Tab label="Commandes" />  {/* Add new Tab for Commandes */}
         </Tabs>
 
         {selectedTab === 0 && (
@@ -149,6 +151,7 @@ const EventPage = () => {
         )}
         {selectedTab === 2 && <BookingTab eventId={event?.id} />}
         {selectedTab === 3 && <SimpleEntriesTab eventId={event?.id} />} 
+        {selectedTab === 4 && <OrdersTab eventId={event?.id} />}  {/* Render OrdersTab when selected */}
       </Box>
     </Container>
   );
