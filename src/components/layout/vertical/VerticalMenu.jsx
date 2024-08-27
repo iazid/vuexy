@@ -67,7 +67,7 @@ const VerticalMenu = ({ scrollMenu }) => {
           A propos
         </MenuItem>
         <MenuItem href='/events/eventpage' icon={<i className='tabler-star' />}>
-          Evenements
+          Évènements
         </MenuItem>
         <MenuItem href='/profile' icon={<i className='tabler-user-filled ' />}>
           Utilisateurs

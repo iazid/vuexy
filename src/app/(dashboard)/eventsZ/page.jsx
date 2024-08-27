@@ -5,7 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { adb, storagedb, auth } from '../../firebase/firebaseconfigdb';
 import { useRouter } from 'next/navigation';
-import EventList from '../../../views/eventsZ/EventListTable';
+import EventList from '../../../views/events/EventListTable';
 import { ref, getDownloadURL } from 'firebase/storage';
 import EventFactory from '../../../utils/EventFactory';
 import CircularProgress from '@mui/material/CircularProgress';
